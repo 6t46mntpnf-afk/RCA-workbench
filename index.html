@@ -1,0 +1,1173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Guided root cause analysis with 6M fishbone, 5 Whys, Maximo failure history and CAPA, with a customer-ready report.">
+<meta name="theme-color" content="#3D72AD">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RCA Workbench">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+/* Base reset (matches the Claude artifact skeleton so the page looks the same in both places) */
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) }
+body { margin: 0 } img { max-width: 100% } [hidden] { display: none !important }
+</style>
+<title>RCA Workbench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="vendor/xlsx.full.min.js"></script>
+<style>
+/* Layout: sticky header, step rail on the left (strip on phones), one working card per RCA step. House palette: navy / teal / amber / red. */
+:root {
+  --bg: #F7F9FC; --surface: #FFFFFF; --surface-2: #FAFBFD; --fg: #26303C; --muted: #66727F; --line: #E4E9EF;
+  --primary: #3D72AD; --primary-fg: #FFFFFF; --teal: #17A994; --teal-soft: #E8F7F4;
+  --amber: #B97A16; --amber-soft: #FBF0DD; --red: #C8473B; --red-soft: #F8E4E1; --green: #2E8B57; --green-soft: #E2F2E8;
+  --focus: #0F9D8A;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E141B; --surface: #161F29; --surface-2: #1B2531; --fg: #E5EAF0; --muted: #98A4B3; --line: #2A3644;
+  --primary: #7FA7D9; --primary-fg: #0E141B; --teal: #34BFAA; --teal-soft: #15332F;
+  --amber: #E8A33D; --amber-soft: #3A2D16; --red: #E7766B; --red-soft: #3D1F1C; --green: #5CC08A; --green-soft: #17331F;
+  --focus: #34BFAA; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0E141B; --surface: #161F29; --surface-2: #1B2531; --fg: #E5EAF0; --muted: #98A4B3; --line: #2A3644;
+  --primary: #7FA7D9; --primary-fg: #0E141B; --teal: #34BFAA; --teal-soft: #15332F;
+  --amber: #E8A33D; --amber-soft: #3A2D16; --red: #E7766B; --red-soft: #3D1F1C; --green: #5CC08A; --green-soft: #17331F;
+  --focus: #34BFAA; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px; line-height: 1.5 }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface) }
+h1, h2, h3 { text-wrap: balance; margin: 0 }
+button, input, select, textarea { font: inherit; color: inherit }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px }
+.mono { font-family: var(--mono); font-size: 12.5px }
+
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px }
+.top-in { max-width: 1240px; margin: 0 auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0 }
+.brand svg { flex: none }
+.brand b { font-size: 15px; letter-spacing: .01em }
+.brand span { color: var(--muted); font-size: 12px; display: block; line-height: 1.2 }
+.case-pick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0 }
+.case-pick select { max-width: 280px; min-width: 0 }
+.save-state { font-size: 12px; color: var(--muted); white-space: nowrap }
+.save-state.ok::before { content: "● "; color: var(--green) }
+.save-state.busy::before { content: "● "; color: var(--amber) }
+.save-state.local::before { content: "● "; color: var(--amber) }
+
+.shell { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 20px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 60px }
+nav.steps { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); align-self: start; display: flex; flex-direction: column; gap: 2px }
+nav.steps button { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 8px; text-align: left; border: 0; background: none;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--muted) }
+nav.steps button:hover { background: var(--surface) }
+nav.steps button[aria-current="step"] { background: var(--surface); color: var(--fg); box-shadow: inset 3px 0 0 var(--teal) }
+nav.steps .n { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 600 }
+nav.steps .done .n { background: var(--teal); border-color: var(--teal); color: var(--primary-fg) }
+nav.steps .lbl { font-weight: 500; font-size: 13.5px }
+nav.steps .ct { font-size: 11px; font-variant-numeric: tabular-nums }
+nav.steps .sep { height: 1px; background: var(--line); margin: 8px 10px }
+
+main { min-width: 0 }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 22px }
+.card + .card { margin-top: 16px }
+.step-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-bottom: 18px }
+.step-head h2 { font-size: 20px; font-weight: 650 }
+.step-head p { margin: 4px 0 0; color: var(--muted); max-width: 68ch }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--teal); font-weight: 600 }
+h3.sub { font-size: 14px; font-weight: 650; margin: 22px 0 10px }
+h3.sub:first-child { margin-top: 0 }
+
+.grid { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) }
+.grid .wide { grid-column: 1 / -1 }
+label.f { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+label.f > span { font-size: 12px; color: var(--muted); font-weight: 500 }
+label.f > span em { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--teal) }
+input[type=text], input[type=number], input[type=date], input[type=datetime-local], select, textarea {
+  width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 7px 9px; font-size: 13.5px }
+textarea { resize: vertical; min-height: 64px }
+input:focus, select:focus, textarea:focus { border-color: var(--teal); outline: none; box-shadow: 0 0 0 3px var(--teal-soft) }
+input[type=color] { width: 44px; height: 34px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: var(--surface-2) }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); padding: 7px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 13px; white-space: nowrap }
+.btn:hover { border-color: var(--muted) }
+.btn.pri { background: var(--primary); color: var(--primary-fg); border-color: var(--primary) }
+.btn.teal { background: var(--teal); color: var(--primary-fg); border-color: var(--teal) }
+.btn.ghost { border-color: transparent; background: none; color: var(--muted) }
+.btn.ghost:hover { color: var(--red) }
+.btn.sm { padding: 4px 8px; font-size: 12px }
+.btn[disabled] { opacity: .5; cursor: default }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+
+.banner { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--amber-soft); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px }
+.banner b { color: var(--amber) }
+.note { font-size: 12.5px; color: var(--muted) }
+.warn { color: var(--amber); font-size: 12.5px }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap }
+.pill.red { background: var(--red-soft); color: var(--red) } .pill.amber { background: var(--amber-soft); color: var(--amber) }
+.pill.green { background: var(--green-soft); color: var(--green) } .pill.teal { background: var(--teal-soft); color: var(--teal) }
+.pill.grey { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line) }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 4px }
+.tile { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px }
+.tile .k { font-size: 11.5px; color: var(--muted) }
+.tile .v { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px }
+.tile .v.red { color: var(--red) }
+
+.preview { background: var(--surface-2); border: 1px dashed var(--line); border-radius: 8px; padding: 14px 16px; font-size: 15px; line-height: 1.55 }
+
+.list { display: flex; flex-direction: column; gap: 8px }
+.item { display: grid; gap: 8px; align-items: start; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px }
+.item.tl { grid-template-columns: 190px 150px minmax(0, 1fr) auto }
+.item.capa { grid-template-columns: minmax(0, 1fr) auto }
+.item.root { grid-template-columns: minmax(0, 1fr) auto }
+@media (max-width: 760px) { .item.tl { grid-template-columns: 1fr 1fr } .item.tl > :nth-child(3) { grid-column: 1 / -1 } }
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px }
+table.t { border-collapse: collapse; width: 100%; font-size: 12.5px }
+table.t th, table.t td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap }
+table.t th { background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 11.5px }
+table.t td.num, table.t th.num { text-align: right; font-variant-numeric: tabular-nums }
+table.t tr.hl td { background: var(--red-soft) }
+
+.fish-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 12px }
+.bone { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px }
+.bone h4 { margin: 0 0 2px; font-size: 13.5px; display: flex; justify-content: space-between; gap: 8px }
+.bone .hint { font-size: 11.5px; color: var(--muted); margin-bottom: 8px }
+.cause { display: grid; grid-template-columns: minmax(0, 1fr) 104px auto; gap: 6px; margin-bottom: 6px; align-items: center }
+.cause.root input[type=text] { border-color: var(--teal); font-weight: 600 }
+.cause.ruled input[type=text] { text-decoration: line-through; color: var(--muted) }
+.cause .tag { grid-column: 1 / -1; font-size: 11px; color: var(--amber); margin-top: -4px }
+
+.svg-box { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 8px }
+.svg-box svg { display: block; min-width: 720px; width: 100% }
+
+.why-chain { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--surface-2) }
+.why-chain + .why-chain { margin-top: 12px }
+.why { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, .8fr) auto; gap: 8px; align-items: start; margin-top: 8px }
+.why .q { font-weight: 650; font-size: 12px; color: var(--teal); padding-top: 8px }
+.why.last textarea:first-of-type { border-color: var(--teal) }
+@media (max-width: 760px) { .why { grid-template-columns: 1fr auto } .why .q { grid-column: 1 / -1; padding: 0 } }
+
+.dropzone { border: 2px dashed var(--line); border-radius: 8px; padding: 22px; text-align: center; color: var(--muted); background: var(--surface-2) }
+.dropzone.over { border-color: var(--teal); background: var(--teal-soft) }
+.map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px }
+
+.report-host { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #F1F4F8 }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: 8px; font-size: 13px; z-index: 20 }
+.ai-box { border: 1px solid var(--teal); background: var(--teal-soft); border-radius: 8px; padding: 10px 12px; font-size: 13px }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr) }
+  nav.steps { position: static; flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px }
+  nav.steps button { grid-template-columns: 22px auto; white-space: nowrap }
+  nav.steps .ct, nav.steps .sep { display: none }
+  .card { padding: 16px }
+}
+#printArea { display: none }
+@media print { header.top, .shell, .toast, body::before { display: none !important } #printArea { display: block } body { background: #fff } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="7" fill="#3D72AD"/><path d="M6 15h13M19 15l5-5M19 15l5 5M10 15l-3-5M10 15l-3 5M14 15l-3-5M14 15l-3 5" stroke="#5FD3C1" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      <div><b>RCA Workbench</b><span>Root cause analysis · 6M fishbone · 5 Whys · CAPA</span></div>
+    </div>
+    <div class="case-pick">
+      <label for="casesel" class="note">Case</label>
+      <select id="casesel"></select>
+      <button class="btn" data-act="new-case">New case</button>
+      <span id="savestate" class="save-state"></span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="steps" id="nav" aria-label="RCA steps"></nav>
+  <main id="main"></main>
+</div>
+<input type="file" id="fileWO" accept=".csv,.xlsx,.xls,.txt" hidden>
+<input type="file" id="fileJSON" accept=".json" hidden>
+<input type="file" id="fileLogo" accept="image/*" hidden>
+<div id="toast" class="toast" hidden></div>
+<div id="printArea"></div>
+
+<script>
+"use strict";
+const STANDALONE = !window.claude;
+/* ---------- constants ---------- */
+const STEPS = [
+  { id: "event", n: 1, label: "Event & impact" },
+  { id: "problem", n: 2, label: "Problem statement" },
+  { id: "timeline", n: 3, label: "Sequence of events" },
+  { id: "history", n: 4, label: "Failure history" },
+  { id: "fishbone", n: 5, label: "Fishbone (6M)" },
+  { id: "whys", n: 6, label: "5 Whys" },
+  { id: "roots", n: 7, label: "Root causes" },
+  { id: "capa", n: 8, label: "Actions (CAPA)" },
+  { id: "report", n: 9, label: "Report & export" }
+];
+const CATS = [
+  { k: "Machine", hint: "Equipment, design, components, wear, failure mechanisms" },
+  { k: "Method", hint: "Procedures, PMs, job plans, operating practice" },
+  { k: "Material", hint: "Lubricants, spares, consumables, process material" },
+  { k: "Manpower", hint: "Skills, training, decisions, workload, communication" },
+  { k: "Measurement", hint: "Condition monitoring, alarms, inspections, data quality" },
+  { k: "Environment", hint: "Mother Nature: dust, water, heat, vibration, load" }
+];
+const TL_KINDS = { event: "Event", initiating: "Initiating event", failure: "Point of failure", response: "Response", restore: "Returned to service" };
+const ROOT_TYPES = ["Physical", "Human", "Latent / systemic"];
+const CAPA_TYPES = ["Eliminate", "Engineer", "Administrative", "Monitor"];
+const MAXIMO_OBJ = ["PM", "Job Plan", "Meter", "Failure Code", "Reliability Strategy", "Other"];
+const CAPA_STATUS = ["Proposed", "Approved", "In progress", "Complete", "Verified effective"];
+const CAUSE_WORDS = /\b(because|due to|caused|cause|as a result of|owing to|root|blame)\b/i;
+const WO_FIELDS = [
+  { k: "wonum", label: "Work order", alias: ["wonum", "workorder", "wo", "order", "notification", "wonumber", "ordernumber", "jobnumber"] },
+  { k: "asset", label: "Asset", alias: ["assetnum", "asset", "assetid", "equipment", "equipmentnumber", "equip", "plantno", "assetnumber"] },
+  { k: "location", label: "Location", alias: ["location", "functionallocation", "floc", "funcloc"] },
+  { k: "date", label: "Failure / start date", alias: ["actstart", "reportdate", "notificationdate", "startdate", "basicstartdate", "failuredate", "date", "malfunctionstart", "created"] },
+  { k: "finish", label: "Finish date", alias: ["actfinish", "finishdate", "completiondate", "malfunctionend", "completed", "enddate"] },
+  { k: "worktype", label: "Work type", alias: ["worktype", "ordertype", "type", "wotype", "maintenanceactivitytype"] },
+  { k: "cost", label: "Total cost", alias: ["acttotalcost", "totalcost", "actualcost", "actualcosts", "cost", "totalactualcost"] },
+  { k: "failurecode", label: "Failure class", alias: ["failurecode", "failureclass", "catalogprofile", "failclass"] },
+  { k: "problem", label: "Problem code", alias: ["problemcode", "problem", "damagecode", "damage", "failuremode"] },
+  { k: "cause", label: "Cause code", alias: ["causecode", "cause"] },
+  { k: "remedy", label: "Remedy code", alias: ["remedycode", "remedy", "activitycode"] },
+  { k: "desc", label: "Description", alias: ["description", "shorttext", "desc", "wodescription", "text"] }
+];
+
+/* ---------- utilities ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const num = v => { const n = parseFloat(String(v ?? "").replace(/[^0-9.\-]/g, "")); return isFinite(n) ? n : 0; };
+const fmtN = (n, d = 0) => Number(n || 0).toLocaleString("en-NZ", { maximumFractionDigits: d, minimumFractionDigits: d });
+const fmtMoney = (n, cur) => (cur || "$") + fmtN(Math.round(n || 0));
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmtDate(s) { if (!s) return ""; const d = new Date(s); if (isNaN(d)) return esc(s); return d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
+function fmtDT(s) { if (!s) return ""; const d = new Date(s); if (isNaN(d)) return esc(s); const t = s.length > 10 ? " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") : ""; return fmtDate(s) + t; }
+function getPath(o, p) { return p.split(".").reduce((a, k) => a == null ? a : a[k], o); }
+function setPath(o, p, v) { const ks = p.split("."); let a = o; for (let i = 0; i < ks.length - 1; i++) { if (a[ks[i]] == null) a[ks[i]] = {}; a = a[ks[i]]; } a[ks[ks.length - 1]] = v; }
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600); }
+function trunc(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+function wrapLines(s, n, maxLines) { const words = String(s || "").split(/\s+/); const lines = []; let cur = ""; for (const w of words) { if ((cur + " " + w).trim().length > n) { if (cur) lines.push(cur); cur = w; } else cur = (cur + " " + w).trim(); } if (cur) lines.push(cur); if (lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] = trunc(lines[maxLines - 1], n - 1) + (lines[maxLines - 1].endsWith("…") ? "" : "…"); } return lines; }
+function parseDate(v) {
+  if (v == null || v === "") return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  if (typeof v === "number") { if (v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 864e5)); return null; }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})(?:[ T](\d{1,2}):(\d{2}))?/);
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; const d = new Date(y, +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)); return isNaN(d) ? null : d; }
+  const d = new Date(s); return isNaN(d) ? null : d;
+}
+const isoDay = d => d ? d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") : "";
+
+/* ---------- case model ---------- */
+function blankCase() {
+  const fb = {}; CATS.forEach(c => fb[c.k] = []);
+  const today = isoDay(new Date());
+  return {
+    id: uid(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), example: false,
+    meta: { title: "", customer: "", site: "", asset: "", assetDesc: "", location: "", eventDate: today, reportId: "RCA-" + today.replace(/-/g, "") + "-01", revision: "A", author: "", team: "", brand: "#3D72AD", logo: "", reportDate: today },
+    impact: { consequence: "Production loss", safety: "None", env: "None", downtimeHrs: "", prodRate: "", labour: "", parts: "", other: "", currency: "$", notes: "" },
+    pcr: { failureClass: "", problem: "", cause: "", remedy: "", match: "", recommended: "" },
+    problem: { what: "", where: "", when: "", impact: "", statement: "" },
+    timeline: [], wos: [], woSource: null, fishbone: fb, whys: [], roots: [], capa: [],
+    summary: "", assumptions: "", hypotheses: "", dataNeeded: ""
+  };
+}
+function exampleCase() {
+  const c = blankCase();
+  c.example = true; c.id = "example-cv201";
+  Object.assign(c.meta, { title: "CV-201 head drive gearbox bearing seizure", customer: "Example Customer Ltd", site: "Example Site, Crushing Plant 2", asset: "CV-201-GBX", assetDesc: "Overland conveyor CV-201 head drive gearbox (250 kW)", location: "CP2-CONV-CV201", eventDate: "2026-09-14", reportId: "RCA-20260914-01", revision: "A", author: "Reliability Engineer", team: "Reliability Engineer (lead), Maintenance Supervisor, Lubrication Technician, Production Shift Lead, Planner", reportDate: "2026-10-22" });
+  Object.assign(c.impact, { consequence: "Production loss", safety: "None", env: "Minor oil spill, contained on drip tray", downtimeHrs: 39.75, prodRate: 4500, labour: 12800, parts: 38500, other: 2200, currency: "$", notes: "Production rate is the lost margin per hour of conveyor downtime, from the site's downtime cost register." });
+  Object.assign(c.pcr, { failureClass: "GEARBOX", problem: "BRGFAIL", cause: "WEAR", remedy: "REPLASM", match: "no", recommended: "LUBDEG (lubricant degraded / contaminated)" });
+  Object.assign(c.problem, { what: "The output shaft bearing on the CV-201 head drive gearbox seized and tripped the conveyor", where: "Crushing Plant 2, overland conveyor CV-201 head drive", when: "14 September 2026 at 02:15, during night shift", impact: "39.75 hours of lost conveying and an estimated $232,375 in lost margin and repair cost" });
+  c.timeline = [
+    { id: uid(), at: "2025-03-18T09:00", kind: "event", text: "Gearbox job plans consolidated; oil change task removed from JP-GBX-06 during the rewrite", source: "Maximo Job Plan revision history" },
+    { id: uid(), at: "2026-07-20T08:00", kind: "event", text: "Lube PM-4471 completed: oil top-up only, no oil sample taken", source: "WO 118842" },
+    { id: uid(), at: "2026-09-10T14:30", kind: "initiating", text: "Operator reports grinding noise at CV-201 head drive", source: "Shift log" },
+    { id: uid(), at: "2026-09-12T06:00", kind: "event", text: "Vibration route reads 7.8 mm/s RMS on output bearing (alarm 4.5). WO raised at priority 3", source: "CM route data, WO 120117" },
+    { id: uid(), at: "2026-09-14T02:15", kind: "failure", text: "High temperature trip on gearbox output bearing; CV-201 stops", source: "SCADA trip log" },
+    { id: uid(), at: "2026-09-14T03:00", kind: "response", text: "Maintenance attends; output bearing seized, oil dark with visible metal", source: "Callout report" },
+    { id: uid(), at: "2026-09-15T18:00", kind: "restore", text: "Spare gearbox fitted and aligned; CV-201 returned to service", source: "WO 120140" }
+  ];
+  const w = (wonum, date, finish, worktype, cost, problem, cause, desc) => ({ wonum, asset: "CV-201-GBX", location: "CP2-CONV-CV201", date, finish, worktype, cost, failurecode: worktype === "PM" ? "" : "GEARBOX", problem, cause, remedy: "", desc });
+  c.wos = [
+    w("108221", "2024-11-04", "2024-11-04", "PM", 640, "", "", "Gearbox lube PM"),
+    w("109876", "2025-01-21", "2025-01-22", "CM", 9800, "OILLEAK", "SEALFAIL", "Output seal leaking"),
+    w("111302", "2025-04-02", "2025-04-02", "PM", 610, "", "", "Gearbox lube PM"),
+    w("112950", "2025-06-16", "2025-06-18", "EM", 54200, "BRGFAIL", "WEAR", "Output bearing noisy, replaced bearing"),
+    w("114117", "2025-08-28", "2025-08-28", "PM", 620, "", "", "Gearbox lube PM"),
+    w("115604", "2025-11-10", "2025-11-11", "CM", 7400, "OVERHEAT", "LUBLOW", "High oil temperature, topped up"),
+    w("116990", "2026-02-03", "2026-02-03", "PM", 655, "", "", "Gearbox lube PM"),
+    w("117735", "2026-04-22", "2026-04-23", "CM", 18900, "BRGFAIL", "WEAR", "Input bearing replaced, noisy"),
+    w("118842", "2026-07-20", "2026-07-20", "PM", 640, "", "", "Gearbox lube PM, top-up only"),
+    w("120117", "2026-09-12", "2026-09-12", "CM", 0, "VIBHIGH", "", "High vibration on output bearing"),
+    w("120140", "2026-09-14", "2026-09-15", "EM", 51300, "BRGFAIL", "WEAR", "Gearbox seized, change out with spare")
+  ];
+  c.woSource = { file: "Example Maximo WO export (illustrative)", totalRows: 11, keptRows: 11, dateFrom: "2024-11-04", dateTo: "2026-09-14", dupes: 0, missing: "Cost blank on 0 rows", mapping: { wonum: "WONUM", asset: "ASSETNUM", date: "ACTSTART", finish: "ACTFINISH", worktype: "WORKTYPE", cost: "ACTTOTALCOST", failurecode: "FAILURECODE", problem: "PROBLEMCODE", cause: "CAUSECODE", desc: "DESCRIPTION" } };
+  const cz = (text, status, mech, infl) => ({ id: uid(), text, status: status || "candidate", mech: mech || "", infl: infl || "" });
+  c.fishbone = {
+    Machine: [cz("Output bearing fatigue and wear", "root", "Wear / fatigue"), cz("Seal leakage allowing water ingress", "candidate", "Leakage"), cz("Bearing undersized for duty", "ruled")],
+    Method: [cz("Oil change dropped from job plan in 2025 rewrite", "root", "", "Inadequate PM"), cz("No oil sampling on lube route", "candidate"), cz("Alignment not checked after 2025 bearing repair", "ruled")],
+    Material: [cz("Oil degraded: water 0.4%, Fe 210 ppm", "candidate", "", "Contamination"), cz("Wrong oil grade used for top-up", "ruled")],
+    Manpower: [cz("7.8 mm/s reading raised as P3, not escalated", "root"), cz("Lube technician unaware of OEM interval", "candidate")],
+    Measurement: [cz("No vibration alarm escalation rule in CM procedure", "candidate"), cz("Oil temperature not trended in SCADA", "candidate")],
+    Environment: [cz("Dust and washdown water at head drive", "candidate", "", "Contamination"), cz("Higher tonnage after plant upgrade", "ruled")]
+  };
+  c.whys = [{
+    id: uid(), title: "Physical path: why did the bearing seize?", steps: [
+      { text: "The conveyor stopped because the gearbox output bearing seized and tripped the high-temperature protection.", evidence: "SCADA trip log; teardown photos" },
+      { text: "The bearing seized because it ran in degraded oil with wear metal and water contamination.", evidence: "Drained oil analysis: water 0.4%, Fe 210 ppm, ISO 22/20/17" },
+      { text: "The oil was degraded because it had not been changed for 14 months against a 6-month OEM interval.", evidence: "Maximo PM history for PM-4471; OEM manual s.7.2" },
+      { text: "The oil change was overdue because PM-4471 covers top-up only; the change task was dropped in the 2025 job plan rewrite.", evidence: "JP-GBX-06 revision history" },
+      { text: "The gap was not caught because job plan changes are not reviewed against OEM requirements before release.", evidence: "Planning procedure MP-PLN-03 has no technical review step" }
+    ]
+  }, {
+    id: uid(), title: "Detection path: why was the warning not acted on?", steps: [
+      { text: "The bearing ran for two days after a 7.8 mm/s reading because the WO was raised at priority 3.", evidence: "WO 120117 priority history" },
+      { text: "It was raised at P3 because the CM procedure has no rule linking severity to priority.", evidence: "CM procedure MP-CM-01 rev 2" }
+    ]
+  }];
+  c.roots = [
+    { id: "r1", text: "Lubricant degradation and contamination led to wear and seizure of the output bearing", type: "Physical", evidence: "Oil analysis of drained oil; teardown shows wear and discolouration on rollers", confidence: "High" },
+    { id: "r2", text: "A priority 3 work order was raised against a vibration reading above alarm, so the bearing was not inspected before failure", type: "Human", evidence: "WO 120117; CM route data", confidence: "High" },
+    { id: "r3", text: "Job plan changes are released without a technical review against OEM requirements, which let the oil change task drop out", type: "Latent / systemic", evidence: "JP-GBX-06 revision history; MP-PLN-03", confidence: "Medium" }
+  ];
+  c.capa = [
+    { id: uid(), action: "Restore the 6-monthly oil change task to JP-GBX-06 and add an oil sample to every lube PM", rootId: "r1", type: "Administrative", mobj: "Job Plan", owner: "Maintenance Planner", due: "2026-11-15", check: "Next 2 oil samples within ISO 18/16/13 and water below 0.05%", status: "Approved" },
+    { id: uid(), action: "Add a gearbox oil temperature meter with a 75 °C condition-monitoring trigger that generates a WO", rootId: "r1", type: "Monitor", mobj: "Meter", owner: "Reliability Engineer", due: "2026-12-15", check: "Meter readings flowing to Maximo daily; test trigger raises WO", status: "Proposed" },
+    { id: uid(), action: "Fit a desiccant breather and upgraded seal kit to the CV-201 gearbox to stop water ingress", rootId: "r1", type: "Engineer", mobj: "Other", owner: "Maintenance Supervisor", due: "2027-01-31", check: "Water content below 0.05% at 3 consecutive samples", status: "Proposed" },
+    { id: uid(), action: "Add a severity-to-priority table to the CM procedure (above alarm = P2, above trip = P1)", rootId: "r2", type: "Administrative", mobj: "Other", owner: "Reliability Engineer", due: "2026-11-30", check: "Audit of next 20 CM WOs shows correct priority", status: "Proposed" },
+    { id: uid(), action: "Add a technical review step for job plan changes and audit all gearbox job plans against OEM manuals", rootId: "r3", type: "Administrative", mobj: "Reliability Strategy", owner: "Maintenance Manager", due: "2027-02-28", check: "100% of gearbox job plans reviewed; no OEM tasks missing", status: "Proposed" },
+    { id: uid(), action: "Recode WO 120140 cause from WEAR to LUBDEG and add LUBDEG to the GEARBOX failure class", rootId: "r3", type: "Administrative", mobj: "Failure Code", owner: "Maintenance Planner", due: "2026-10-31", check: "Failure report on WO 120140 updated; code in use", status: "In progress" }
+  ];
+  c.assumptions = "Production rate of $4,500/h taken from the site downtime cost register. Labour cost uses the site blended rate. The spare gearbox overhaul cost is included in parts.";
+  c.dataNeeded = "Bearing metallurgy report from the OEM to confirm fatigue versus lubrication-starvation mode. Oil temperature trend if it can be recovered from the PLC historian.";
+  return c;
+}
+
+/* ---------- calculations ---------- */
+function costOf(c) {
+  const i = c.impact; const dt = num(i.downtimeHrs) * num(i.prodRate);
+  return { downtime: dt, labour: num(i.labour), parts: num(i.parts), other: num(i.other), total: dt + num(i.labour) + num(i.parts) + num(i.other) };
+}
+function autoStatement(c) {
+  const p = c.problem; if (!p.what) return "";
+  let s = p.what.replace(/\.$/, "");
+  if (p.where) s += " at " + p.where.replace(/\.$/, "");
+  if (p.when) s += " on " + p.when.replace(/\.$/, "");
+  if (p.impact) s += ", resulting in " + p.impact.replace(/\.$/, "");
+  return s + ".";
+}
+const statementOf = c => (c.problem.statement || "").trim() || autoStatement(c);
+function historyOf(c) {
+  const asset = (c.meta.asset || "").trim().toLowerCase();
+  const rows = c.wos.map(r => ({ ...r, d: parseDate(r.date) })).filter(r => r.d && (!asset || String(r.asset).toLowerCase() === asset));
+  const fails = rows.filter(r => !/^(pm|pdm|pmp|cal|ins)/i.test(r.worktype || ""));
+  fails.sort((a, b) => a.d - b.d);
+  const ev = parseDate(c.meta.eventDate);
+  const mode = (c.pcr.problem || "").trim().toLowerCase();
+  const same = mode ? fails.filter(r => String(r.problem || "").toLowerCase() === mode) : [];
+  const priorSame = same.filter(r => !ev || r.d < new Date(ev.getTime() - 864e5 * 2));
+  let mtbf = null;
+  if (fails.length > 1) { mtbf = (fails[fails.length - 1].d - fails[0].d) / 864e5 / (fails.length - 1); }
+  const cost = fails.reduce((a, r) => a + num(r.cost), 0);
+  // monthly buckets
+  let months = [];
+  if (rows.length) {
+    const start = new Date(Math.min(...rows.map(r => r.d))); const end = new Date(Math.max(ev ? ev.getTime() : 0, ...rows.map(r => +r.d)));
+    let y = start.getFullYear(), m = start.getMonth();
+    while (y < end.getFullYear() || (y === end.getFullYear() && m <= end.getMonth())) { months.push({ y, m, n: 0, ev: false }); m++; if (m > 11) { m = 0; y++; } if (months.length > 60) break; }
+    if (months.length > 36) months = months.slice(-36);
+    fails.forEach(r => { const b = months.find(x => x.y === r.d.getFullYear() && x.m === r.d.getMonth()); if (b) b.n++; });
+    if (ev) { const b = months.find(x => x.y === ev.getFullYear() && x.m === ev.getMonth()); if (b) b.ev = true; }
+  }
+  return { rows, fails, same, priorSame, mtbf, cost, months, repeat: priorSame.length > 0 };
+}
+function historyTitle(c, h) {
+  if (!h.fails.length) return "No work order history loaded for this asset";
+  const span = h.months.length;
+  let t = h.fails.length + " corrective work orders on " + (c.meta.asset || "this asset") + " in " + span + " months";
+  if (h.repeat) t += "; this is failure " + (h.priorSame.length + 1) + " of the " + c.pcr.problem + " mode";
+  return t;
+}
+function stepCount(c, id) {
+  switch (id) {
+    case "event": return [c.meta.title, c.meta.asset, c.meta.eventDate, c.impact.downtimeHrs].filter(Boolean).length >= 4;
+    case "problem": return !!statementOf(c);
+    case "timeline": return c.timeline.length;
+    case "history": return c.wos.length;
+    case "fishbone": return CATS.reduce((a, k) => a + c.fishbone[k.k].length, 0);
+    case "whys": return c.whys.reduce((a, w) => a + w.steps.filter(s => s.text).length, 0);
+    case "roots": return c.roots.length;
+    case "capa": return c.capa.length;
+    default: return 0;
+  }
+}
+
+/* ---------- state + persistence ---------- */
+const S = { list: [], cur: null, step: "event", db: null, dbReady: false, sample: null, downloads: null, saveTimer: null, pendingImport: null, ai: {} };
+const LS_KEY = "rca-workbench-v1";
+function lsRead() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { return null; } }
+function lsWrite(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch (e) { } }
+function setSave(state, text) { const el = $("#savestate"); el.className = "save-state " + state; el.textContent = text; }
+
+function touch() {
+  if (!S.cur) return;
+  S.cur.updatedAt = new Date().toISOString();
+  setSave("busy", "Saving…");
+  clearTimeout(S.saveTimer);
+  S.saveTimer = setTimeout(saveNow, 700);
+}
+async function saveNow() {
+  const c = S.cur; if (!c) return;
+  const idx = S.list.findIndex(x => x.id === c.id);
+  const summary = { id: c.id, title: c.meta.title || "Untitled RCA", updatedAt: c.updatedAt, example: !!c.example };
+  if (idx >= 0) S.list[idx] = summary; else S.list.unshift(summary);
+  renderCaseSel();
+  if (S.db) {
+    try { await S.db.doc("cases/" + c.id).set(JSON.parse(JSON.stringify(c))); setSave("ok", "Saved"); return; }
+    catch (e) { console.warn(e); }
+  }
+  const all = lsRead() || { cases: {} }; all.cases[c.id] = c; all.last = c.id; lsWrite(all);
+  setSave("local", "Saved in this browser only");
+}
+async function loadCase(id) {
+  let c = null;
+  if (S.db) { try { const snap = await S.db.doc("cases/" + id).get(); if (snap.exists) c = snap.data(); } catch (e) { console.warn(e); } }
+  if (!c) { const all = lsRead(); c = all && all.cases && all.cases[id]; }
+  if (!c && id === "example-cv201") c = exampleCase();
+  if (!c) return;
+  S.cur = normalise(c);
+  const all = lsRead() || { cases: {} }; all.last = id; lsWrite(all);
+  render();
+}
+function normalise(c) {
+  const b = blankCase();
+  const out = Object.assign(b, c);
+  ["meta", "impact", "pcr", "problem"].forEach(k => out[k] = Object.assign(blankCase()[k], c[k] || {}));
+  if (String(out.meta.brand).toUpperCase() === "#1F3A5F") out.meta.brand = "#3D72AD";
+  CATS.forEach(k => { if (!out.fishbone[k.k]) out.fishbone[k.k] = []; });
+  ["timeline", "wos", "whys", "roots", "capa"].forEach(k => { if (!Array.isArray(out[k])) out[k] = []; });
+  return out;
+}
+async function deleteCase() {
+  const c = S.cur; if (!c) return;
+  if (S.db) { try { await S.db.doc("cases/" + c.id).delete(); } catch (e) { console.warn(e); } }
+  const all = lsRead(); if (all && all.cases) { delete all.cases[c.id]; lsWrite(all); }
+  S.list = S.list.filter(x => x.id !== c.id);
+  S.cur = null;
+  if (S.list.length) loadCase(S.list[0].id); else render();
+  toast("Case deleted");
+}
+function newCase(from) {
+  const c = from || blankCase();
+  S.cur = c; S.step = "event"; touch(); saveNow(); render();
+}
+
+/* ---------- rendering: chrome ---------- */
+function renderCaseSel() {
+  const sel = $("#casesel");
+  const list = [...S.list].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  sel.innerHTML = list.length ? list.map(x => `<option value="${esc(x.id)}" ${S.cur && S.cur.id === x.id ? "selected" : ""}>${esc(trunc(x.title, 48))}${x.example ? " (example)" : ""}</option>`).join("") + (list.some(x => x.id === "example-cv201") ? "" : `<option value="__example">Open the worked example…</option>`) : `<option value="">No cases yet</option>`;
+}
+function renderNav() {
+  const c = S.cur;
+  $("#nav").innerHTML = STEPS.map((s, i) => {
+    const cnt = c ? stepCount(c, s.id) : 0;
+    const done = !!cnt;
+    const ct = typeof cnt === "number" && cnt > 0 ? cnt : "";
+    return (s.id === "report" ? '<div class="sep"></div>' : "") +
+      `<button class="${done ? "done" : ""}" data-act="go" data-step="${s.id}" ${S.step === s.id ? 'aria-current="step"' : ""}><span class="n">${done && s.id !== "report" ? "✓" : s.n}</span><span class="lbl">${s.label}</span><span class="ct">${ct}</span></button>`;
+  }).join("");
+}
+function render() {
+  renderCaseSel(); renderNav();
+  const main = $("#main");
+  if (!S.cur) {
+    main.innerHTML = `<div class="card"><div class="eyebrow">Get started</div><h2 style="font-size:22px;margin:6px 0 8px">Start a root cause analysis</h2>
+      <p class="note" style="max-width:62ch">Each case walks through the same method: event and impact, a cause-free problem statement, the sequence of events, failure history from your CMMS export, a 6M fishbone, 5 Whys, verified root causes and a CAPA register. The report builds itself as you go.</p>
+      <div class="row" style="margin-top:14px"><button class="btn pri" data-act="new-case">New blank case</button><button class="btn" data-act="load-example">Open the worked example</button><button class="btn" data-act="import-json">Open a saved case file</button></div></div>`;
+    return;
+  }
+  const c = S.cur;
+  const banner = c.example ? `<div class="banner"><b>Worked example.</b><span>Illustrative data for a fictional conveyor gearbox. Edit it to learn the flow, or start your own case.</span><button class="btn sm" data-act="new-case">New blank case</button></div>` : "";
+  main.innerHTML = banner + (RENDER[S.step] || RENDER.event)(c);
+  afterRender();
+}
+function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
+function head(eyebrow, title, desc, right) {
+  return `<div class="step-head"><div><div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${desc ? `<p>${desc}</p>` : ""}</div>${right ? `<div class="row">${right}</div>` : ""}</div>`;
+}
+const fld = (k, label, val, opts = {}) => {
+  const type = opts.type || "text";
+  const code = opts.code ? ` <em>${opts.code}</em>` : "";
+  const cls = opts.wide ? ' class="f wide"' : ' class="f"';
+  const id = "f_" + k.replace(/\./g, "_");
+  if (type === "textarea") return `<label${cls} for="${id}"><span>${label}${code}</span><textarea id="${id}" data-k="${k}" rows="${opts.rows || 3}" placeholder="${esc(opts.ph || "")}">${esc(val)}</textarea></label>`;
+  if (type === "select") return `<label${cls} for="${id}"><span>${label}${code}</span><select id="${id}" data-k="${k}" ${opts.rr ? 'data-rr="1"' : ""}>${opts.options.map(o => { const v = typeof o === "string" ? o : o[0]; const l = typeof o === "string" ? o : o[1]; return `<option value="${esc(v)}" ${String(val) === String(v) ? "selected" : ""}>${esc(l)}</option>`; }).join("")}</select></label>`;
+  return `<label${cls} for="${id}"><span>${label}${code}</span><input id="${id}" type="${type}" data-k="${k}" value="${esc(val)}" placeholder="${esc(opts.ph || "")}" ${type === "number" ? 'step="any" inputmode="decimal"' : ""} ${opts.num ? 'data-num="1"' : ""}></label>`;
+};
+
+/* ---------- step renderers ---------- */
+const RENDER = {
+event(c) {
+  const m = c.meta, i = c.impact, p = c.pcr, cost = costOf(c);
+  return `<div class="card">${head("Step 1 · Intake", "Event and impact", "What failed, where and when, what it cost, and how it was coded in the CMMS. These details fill the report cover and the cost of failure.")}
+  <h3 class="sub">Event</h3>
+  <div class="grid">
+    ${fld("meta.title", "Event title", m.title, { wide: true, ph: "e.g. CV-201 head drive gearbox bearing seizure" })}
+    ${fld("meta.asset", "Asset ID", m.asset, { code: "ASSETNUM", ph: "CV-201-GBX" })}
+    ${fld("meta.assetDesc", "Asset description", m.assetDesc)}
+    ${fld("meta.location", "Location", m.location, { code: "LOCATION" })}
+    ${fld("meta.eventDate", "Event date", m.eventDate, { type: "date" })}
+    ${fld("impact.consequence", "Main consequence", i.consequence, { type: "select", options: ["Production loss", "Safety", "Environment", "Quality", "Cost only", "Multiple"] })}
+    ${fld("impact.safety", "Safety impact", i.safety)}
+    ${fld("impact.env", "Environmental impact", i.env)}
+  </div>
+  <h3 class="sub">Cost of failure</h3>
+  <div class="grid">
+    ${fld("impact.downtimeHrs", "Downtime (hours)", i.downtimeHrs, { type: "number" })}
+    ${fld("impact.prodRate", "Lost production per hour", i.prodRate, { type: "number" })}
+    ${fld("impact.labour", "Repair labour", i.labour, { type: "number" })}
+    ${fld("impact.parts", "Parts and materials", i.parts, { type: "number" })}
+    ${fld("impact.other", "Other (contractors, hire)", i.other, { type: "number" })}
+    ${fld("impact.currency", "Currency symbol", i.currency)}
+    ${fld("impact.notes", "Cost assumptions", i.notes, { type: "textarea", wide: true, rows: 2 })}
+  </div>
+  <div id="live-cost" style="margin-top:12px">${costTiles(c)}</div>
+  </div>
+  <div class="card">
+  <h3 class="sub">Maximo failure coding (as recorded)</h3>
+  <p class="note" style="margin:-4px 0 12px;max-width:72ch">Failure class › problem › cause › remedy, as coded on the work order's failure report. In Reliability Strategies terms, the problem is close to the failure mechanism and the cause is close to the failure influence. You will check this against the verified root cause in step 7.</p>
+  <div class="grid">
+    ${fld("pcr.failureClass", "Failure class", p.failureClass, { code: "FAILURECODE" })}
+    ${fld("pcr.problem", "Problem", p.problem, { code: "PROBLEM" })}
+    ${fld("pcr.cause", "Cause", p.cause, { code: "CAUSE" })}
+    ${fld("pcr.remedy", "Remedy", p.remedy, { code: "REMEDY" })}
+  </div>
+  </div>
+  <div class="card">
+  <h3 class="sub">Report details</h3>
+  <div class="grid">
+    ${fld("meta.customer", "Customer", m.customer)}
+    ${fld("meta.site", "Site", m.site)}
+    ${fld("meta.reportId", "Report ID", m.reportId)}
+    ${fld("meta.revision", "Revision", m.revision)}
+    ${fld("meta.author", "Author", m.author)}
+    ${fld("meta.reportDate", "Report date", m.reportDate, { type: "date" })}
+    ${fld("meta.team", "RCA team", m.team, { wide: true, ph: "Names or roles, comma separated" })}
+    <label class="f" for="f_brand"><span>Brand colour</span><div class="row"><input id="f_brand" type="color" data-k="meta.brand" value="${esc(m.brand || "#3D72AD")}"><span class="mono">${esc(m.brand)}</span></div></label>
+    <div class="f"><span class="note">Customer logo</span><div class="row">${m.logo ? `<img src="${m.logo}" alt="Logo" style="height:34px;max-width:140px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px;padding:2px">` : ""}<button class="btn sm" data-act="logo">${m.logo ? "Replace" : "Upload logo"}</button>${m.logo ? '<button class="btn sm ghost" data-act="logo-clear">Remove</button>' : ""}</div></div>
+  </div>
+  <div class="row" style="margin-top:18px;justify-content:space-between"><button class="btn ghost" data-act="delete-case">Delete this case</button><button class="btn pri" data-act="go" data-step="problem">Next: problem statement</button></div>
+  </div>`;
+},
+problem(c) {
+  const p = c.problem;
+  return `<div class="card">${head("Step 2 · Define", "Problem statement", "One sentence covering what, where, when and the quantified impact. Keep cause words out of it, so the analysis is not steered before it starts.")}
+  <div class="grid">
+    ${fld("problem.what", "What happened", p.what, { wide: true, ph: "The output shaft bearing on the gearbox seized and tripped the conveyor" })}
+    ${fld("problem.where", "Where", p.where)}
+    ${fld("problem.when", "When", p.when)}
+    ${fld("problem.impact", "Impact (quantified)", p.impact, { wide: true, ph: "40 hours of lost conveying and $230k in lost margin and repair" })}
+  </div>
+  <h3 class="sub">Statement</h3>
+  <div id="live-stmt">${stmtPreview(c)}</div>
+  <div class="grid" style="margin-top:12px">${fld("problem.statement", "Edit the wording (optional; leave blank to use the generated sentence)", p.statement, { type: "textarea", wide: true, rows: 2 })}</div>
+  <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="timeline">Next: sequence of events</button></div></div>`;
+},
+timeline(c) {
+  const tl = [...c.timeline].map((t, i) => ({ ...t, i }));
+  return `<div class="card">${head("Step 3 · Evidence", "Sequence of events", "Build the chronology from logs, work orders and interviews. Mark the initiating event and the point of failure. Entries sort by time.", `<button class="btn" data-act="sort-tl">Sort by time</button><button class="btn teal" data-act="add-tl">Add event</button>`)}
+  <div class="list">${tl.length ? tl.map(t => `<div class="item tl">
+    <input type="datetime-local" aria-label="Date and time" data-k="timeline.${t.i}.at" value="${esc(t.at)}">
+    <select aria-label="Event type" data-k="timeline.${t.i}.kind" data-rr="1">${Object.entries(TL_KINDS).map(([k, v]) => `<option value="${k}" ${t.kind === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+    <div style="display:grid;gap:6px;min-width:0"><input type="text" aria-label="What happened" placeholder="What happened" data-k="timeline.${t.i}.text" value="${esc(t.text)}"><input type="text" aria-label="Source" placeholder="Evidence source (log, WO, interview)" data-k="timeline.${t.i}.source" value="${esc(t.source)}" style="font-size:12px"></div>
+    <button class="btn ghost sm" data-act="del" data-list="timeline" data-i="${t.i}" aria-label="Remove event">✕</button></div>`).join("") : `<p class="note">No events yet. Add the first one, starting from the earliest relevant event (for example the last PM or a change).</p>`}</div>
+  ${c.timeline.length ? `<h3 class="sub">Timeline graphic</h3><div class="svg-box">${timelineSVG(c)}</div>` : ""}
+  <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="history">Next: failure history</button></div></div>`;
+},
+history(c) {
+  const h = historyOf(c), src = c.woSource;
+  const imp = S.pendingImport;
+  return `<div class="card">${head("Step 4 · Evidence", "Failure history", "Load a work order export from Maximo, SAP PM, Pronto or any CMMS (CSV or Excel). Columns are mapped to a standard model; Maximo field names are recognised automatically.", c.wos.length ? `<button class="btn ghost" data-act="clear-wos">Clear history</button>` : "")}
+  ${imp ? importMapper(c, imp) : `<div class="dropzone" id="drop"><div style="font-weight:600;color:var(--fg)">Drop a CSV or XLSX work order export here</div><div class="note" style="margin:4px 0 10px">Recognised: WONUM, ASSETNUM, LOCATION, WORKTYPE, ACTSTART, ACTFINISH, ACTTOTALCOST, FAILURECODE, PROBLEMCODE, CAUSECODE, REMEDYCODE, DESCRIPTION, and SAP / Pronto equivalents</div><button class="btn teal" data-act="pick-wo">Choose file</button></div>`}
+  ${c.wos.length ? `
+  <h3 class="sub">${esc(historyTitle(c, h))}</h3>
+  <div class="tiles">
+    <div class="tile"><div class="k">Corrective WOs</div><div class="v">${h.fails.length}</div></div>
+    <div class="tile"><div class="k">Same mode (${esc(c.pcr.problem || "set problem code")})</div><div class="v ${h.repeat ? "red" : ""}">${h.same.length}</div></div>
+    <div class="tile"><div class="k">Mean time between failures</div><div class="v">${h.mtbf ? fmtN(h.mtbf) + " d" : "–"}</div></div>
+    <div class="tile"><div class="k">Corrective cost in period</div><div class="v">${fmtMoney(h.cost, c.impact.currency)}</div></div>
+  </div>
+  <p class="note">${h.repeat ? `<span class="pill red">Repeat failure</span> ${h.priorSame.length} earlier ${esc(c.pcr.problem)} failure${h.priorSame.length > 1 ? "s" : ""} on this asset before the event.` : c.pcr.problem ? `<span class="pill green">Not a repeat</span> No earlier ${esc(c.pcr.problem)} failures found.` : "Set the problem code in step 1 to check for repeat failures."} PM and inspection work types are excluded from failure counts.</p>
+  <div class="svg-box" style="margin-top:10px">${historySVG(c, h)}</div>
+  <h3 class="sub">Work orders for ${esc(c.meta.asset || "all assets")} (${h.rows.length})</h3>
+  <div class="tbl-wrap"><table class="t"><thead><tr><th>WO</th><th>Date</th><th>Type</th><th>Class</th><th>Problem</th><th>Cause</th><th class="num">Cost</th><th>Description</th></tr></thead><tbody>
+  ${h.rows.sort((a, b) => b.d - a.d).map(r => `<tr class="${String(r.problem || "").toLowerCase() === (c.pcr.problem || "").toLowerCase() && c.pcr.problem ? "hl" : ""}"><td class="mono">${esc(r.wonum)}</td><td>${fmtDate(isoDay(r.d))}</td><td>${esc(r.worktype)}</td><td>${esc(r.failurecode)}</td><td>${esc(r.problem)}</td><td>${esc(r.cause)}</td><td class="num">${num(r.cost) ? fmtN(num(r.cost)) : ""}</td><td>${esc(trunc(r.desc, 60))}</td></tr>`).join("")}
+  </tbody></table></div>
+  ${src ? `<p class="note" style="margin-top:8px">Source: ${esc(src.file)} · ${fmtN(src.totalRows)} rows in file, ${fmtN(src.keptRows)} kept for this asset · ${fmtDate(src.dateFrom)} to ${fmtDate(src.dateTo)} · ${src.dupes} duplicate WOs removed</p>` : ""}` : ""}
+  <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="fishbone">Next: fishbone</button></div></div>`;
+},
+fishbone(c) {
+  const ai = S.ai.fish;
+  return `<div class="card">${head("Step 5 · Analyse", "Fishbone (6M)", "List every credible candidate cause under the six categories. Mark each as a candidate, ruled out (with evidence) or a root cause. Use the asset's Reliability Strategies failure mechanisms and influences as a checklist.", S.sample ? `<button class="btn" data-act="ai-fish" ${ai === "busy" ? "disabled" : ""}>${ai === "busy" ? "Thinking…" : "Suggest causes with Claude"}</button>` : "")}
+  ${ai && ai !== "busy" ? `<div class="ai-box" style="margin-bottom:12px">${esc(ai)}</div>` : ""}
+  <div class="fish-cols">${CATS.map(cat => `<div class="bone"><h4>${cat.k === "Environment" ? "Environment" : cat.k}<button class="btn sm" data-act="add-cause" data-cat="${cat.k}">Add</button></h4><div class="hint">${cat.hint}</div>
+    ${c.fishbone[cat.k].map((z, i) => `<div class="cause ${z.status}">
+      <input type="text" aria-label="Cause" data-k="fishbone.${cat.k}.${i}.text" value="${esc(z.text)}" placeholder="Candidate cause">
+      <select aria-label="Status" data-k="fishbone.${cat.k}.${i}.status" data-rr="1"><option value="candidate" ${z.status === "candidate" ? "selected" : ""}>Candidate</option><option value="root" ${z.status === "root" ? "selected" : ""}>Root cause</option><option value="ruled" ${z.status === "ruled" ? "selected" : ""}>Ruled out</option></select>
+      <button class="btn ghost sm" data-act="del-cause" data-cat="${cat.k}" data-i="${i}" aria-label="Remove cause">✕</button>
+      ${z.suggested ? `<div class="tag">Suggested by Claude. Verify against evidence before keeping.</div>` : ""}
+    </div>`).join("") || `<p class="note" style="margin:4px 0">No causes yet.</p>`}
+  </div>`).join("")}</div>
+  <h3 class="sub">Diagram</h3><div class="svg-box">${fishboneSVG(c)}</div>
+  <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="whys">Next: 5 Whys</button></div></div>`;
+},
+whys(c) {
+  const roots = []; CATS.forEach(k => c.fishbone[k.k].forEach(z => { if (z.status === "root" || z.status === "candidate") roots.push(z.text); }));
+  return `<div class="card">${head("Step 6 · Analyse", "5 Whys", "Ask why on the strongest candidate paths. Start a second chain when one answer has two credible branches. Stop when you reach a cause the organisation controls: a system, procedure, design or management cause.", `<button class="btn teal" data-act="add-chain">New chain</button>`)}
+  ${c.whys.length ? c.whys.map((w, wi) => `<div class="why-chain">
+    <div class="row" style="justify-content:space-between"><input type="text" aria-label="Chain title" data-k="whys.${wi}.title" value="${esc(w.title)}" style="font-weight:600;max-width:520px;background:var(--surface)"><div class="row"><button class="btn sm" data-act="promote" data-i="${wi}">Add final why as root cause</button><button class="btn ghost sm" data-act="del" data-list="whys" data-i="${wi}">Remove chain</button></div></div>
+    ${w.steps.map((s, si) => `<div class="why ${si === w.steps.length - 1 ? "last" : ""}"><div class="q">Why ${si + 1}</div>
+      <textarea rows="2" aria-label="Why ${si + 1} answer" data-k="whys.${wi}.steps.${si}.text" placeholder="Because…" style="background:var(--surface)">${esc(s.text)}</textarea>
+      <textarea rows="2" aria-label="Evidence" data-k="whys.${wi}.steps.${si}.evidence" placeholder="Evidence" style="background:var(--surface);font-size:12.5px">${esc(s.evidence)}</textarea>
+      <button class="btn ghost sm" data-act="del-why" data-i="${wi}" data-j="${si}" aria-label="Remove why">✕</button></div>`).join("")}
+    <div style="margin-top:8px;padding-left:72px"><button class="btn sm" data-act="add-why" data-i="${wi}">Ask why again</button></div>
+  </div>`).join("") : `<p class="note">No chains yet.${roots.length ? " Start from a fishbone cause:" : ""}</p>${roots.length ? `<div class="row">${roots.slice(0, 8).map((r, i) => `<button class="btn sm" data-act="chain-from" data-text="${esc(r)}">${esc(trunc(r, 50))}</button>`).join("")}</div>` : ""}`}
+  <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="roots">Next: root causes</button></div></div>`;
+},
+roots(c) {
+  const p = c.pcr;
+  return `<div class="card">${head("Step 7 · Verify", "Root causes", "Classify each root cause and test it against the evidence. Causes without supporting evidence, or rated Low, are listed in the report as hypotheses still to verify.", `<button class="btn" data-act="roots-from-fish">Pull in fishbone roots</button><button class="btn teal" data-act="add-root">Add root cause</button>`)}
+  <div class="list">${c.roots.length ? c.roots.map((r, i) => `<div class="item root"><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">
+    ${fld(`roots.${i}.text`, "Root cause", r.text, { wide: true, type: "textarea", rows: 2 })}
+    ${fld(`roots.${i}.type`, "Type", r.type, { type: "select", options: ROOT_TYPES })}
+    ${fld(`roots.${i}.confidence`, "Confidence", r.confidence, { type: "select", options: ["High", "Medium", "Low"] })}
+    <label class="f" for="f_roots_${i}_evidence" style="grid-column: span 2"><span>Supporting evidence</span><input id="f_roots_${i}_evidence" type="text" data-k="roots.${i}.evidence" value="${esc(r.evidence)}" placeholder="Cite the evidence; leave blank if none yet"></label>
+    </div><button class="btn ghost sm" data-act="del" data-list="roots" data-i="${i}" aria-label="Remove root cause">✕</button></div>`).join("") : `<p class="note">No root causes yet. Pull them in from the fishbone, promote a final why, or add one.</p>`}</div>
+  <h3 class="sub">Coding check against Maximo</h3>
+  <p class="note" style="margin:-4px 0 10px;max-width:72ch">Coded on the WO: <span class="mono">${esc([p.failureClass, p.problem, p.cause, p.remedy].filter(Boolean).join(" › ") || "not recorded")}</span>. Does the coded cause match the verified physical root cause?</p>
+  <div class="grid">
+    ${fld("pcr.match", "Coded cause matches root cause", p.match, { type: "select", options: [["", "Not assessed"], ["yes", "Yes"], ["no", "No, recode"]], rr: true })}
+    ${p.match === "no" ? fld("pcr.recommended", "Recommended cause code", p.recommended, { ph: "e.g. LUBDEG" }) : ""}
+  </div>
+  <h3 class="sub">Open items</h3>
+  <div class="grid">
+    ${fld("dataNeeded", "Data that would confirm unverified causes", c.dataNeeded, { type: "textarea", wide: true, rows: 2 })}
+    ${fld("assumptions", "Assumptions", c.assumptions, { type: "textarea", wide: true, rows: 2 })}
+  </div>
+  <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="capa">Next: actions</button></div></div>`;
+},
+capa(c) {
+  const rootOpts = [["", "Select root cause"], ...c.roots.map((r, i) => [r.id, "RC" + (i + 1) + " · " + trunc(r.text, 60)])];
+  return `<div class="card">${head("Step 8 · Act", "Corrective and preventive actions", "Each action addresses a root cause, sits in the hierarchy (Eliminate › Engineer › Administrative › Monitor), and names the Maximo object that will carry it so it can be executed.", `<button class="btn teal" data-act="add-capa">Add action</button>`)}
+  ${!c.roots.length ? `<p class="warn">Add root causes in step 7 first so every action can be linked to one.</p>` : ""}
+  <div class="list">${c.capa.map((a, i) => `<div class="item capa"><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
+    ${fld(`capa.${i}.action`, "Action " + (i + 1), a.action, { wide: true, type: "textarea", rows: 2 })}
+    ${fld(`capa.${i}.rootId`, "Root cause addressed", a.rootId, { type: "select", options: rootOpts })}
+    ${fld(`capa.${i}.type`, "Type", a.type, { type: "select", options: CAPA_TYPES })}
+    ${fld(`capa.${i}.mobj`, "Maximo object", a.mobj, { type: "select", options: MAXIMO_OBJ })}
+    ${fld(`capa.${i}.owner`, "Owner (role)", a.owner)}
+    ${fld(`capa.${i}.due`, "Due", a.due, { type: "date" })}
+    ${fld(`capa.${i}.status`, "Status", a.status, { type: "select", options: CAPA_STATUS })}
+    ${fld(`capa.${i}.check`, "Effectiveness check (the measurable sign it worked)", a.check, { wide: true })}
+    </div><button class="btn ghost sm" data-act="del" data-list="capa" data-i="${i}" aria-label="Remove action">✕</button></div>`).join("") || `<p class="note">No actions yet.</p>`}</div>
+  ${c.roots.length && c.capa.length ? (() => { const un = c.roots.filter(r => !c.capa.some(a => a.rootId === r.id)); return un.length ? `<p class="warn" style="margin-top:10px">${un.length} root cause${un.length > 1 ? "s have" : " has"} no action yet: ${un.map(r => esc(trunc(r.text, 50))).join("; ")}</p>` : `<p class="note" style="margin-top:10px"><span class="pill green">Covered</span> Every root cause has at least one action.</p>`; })() : ""}
+  <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="report">Next: report</button></div></div>`;
+},
+report(c) {
+  const ai = S.ai.sum;
+  return `<div class="card">${head("Step 9 · Report", "Customer report", "The report is built from the case. Write or draft the executive summary, then export a self-contained HTML report (open it and print to PDF; it is laid out for A4), an Excel workbook of the work orders and CAPA register, or a case file to share or reopen.")}
+  <div class="grid">${fld("summary", "Executive summary (3 to 5 plain-English sentences; leave blank to use the generated one)", c.summary, { type: "textarea", wide: true, rows: 4, ph: autoSummary(c) })}</div>
+  <div class="row" style="margin-top:10px">
+    ${S.sample ? `<button class="btn" data-act="ai-sum" ${ai === "busy" ? "disabled" : ""}>${ai === "busy" ? "Drafting…" : "Draft summary with Claude"}</button>` : ""}
+    <span style="flex:1"></span>
+    <button class="btn" data-act="export-json">Case file (.json)</button>
+    <button class="btn" data-act="import-json">Open case file</button>
+    <button class="btn" data-act="export-xlsx">Excel workbook</button>
+    ${STANDALONE ? `<button class="btn" data-act="print">Print / Save as PDF</button>` : ""}
+    <button class="btn pri" data-act="export-html">Download report (.html)</button>
+  </div>
+  ${ai && ai !== "busy" ? `<div class="ai-box" style="margin-top:10px">${esc(ai)}</div>` : ""}
+  ${S.downloads || STANDALONE ? "" : `<p class="note" style="margin-top:8px">Downloads are not available in this view. Open the page in claude.ai to save files.</p>`}
+  </div>
+  <div class="card" style="padding:0"><div class="report-host" id="reportHost" style="border:0"></div></div>`;
+}
+};
+
+function costTiles(c) {
+  const k = costOf(c), cur = c.impact.currency;
+  return `<div class="tiles"><div class="tile"><div class="k">Lost production</div><div class="v">${fmtMoney(k.downtime, cur)}</div></div><div class="tile"><div class="k">Labour + parts + other</div><div class="v">${fmtMoney(k.labour + k.parts + k.other, cur)}</div></div><div class="tile"><div class="k">Cost of failure</div><div class="v red">${fmtMoney(k.total, cur)}</div></div></div>`;
+}
+function stmtPreview(c) {
+  const s = statementOf(c);
+  const warn = s && CAUSE_WORDS.test(s) ? `<p class="warn" style="margin-top:6px">This contains a cause word ("${esc(s.match(CAUSE_WORDS)[0])}"). Describe the effect only; causes come from the analysis.</p>` : "";
+  return `<div class="preview">${s ? esc(s) : '<span class="note">Fill in the fields above to build the statement.</span>'}</div>${warn}`;
+}
+function autoSummary(c) {
+  const k = costOf(c), h = historyOf(c);
+  const s = [];
+  const st = statementOf(c);
+  if (st) s.push(st);
+  else if (c.meta.title) s.push(c.meta.title + " on " + fmtDate(c.meta.eventDate) + ".");
+  if (h.repeat) s.push(`This is a repeat failure: the same ${c.pcr.problem} failure mode occurred ${h.priorSame.length} time${h.priorSame.length > 1 ? "s" : ""} on this asset in the previous ${h.months.length} months.`);
+  if (c.roots.length) {
+    const byType = ROOT_TYPES.map(t => [t, c.roots.filter(r => r.type === t).length]).filter(x => x[1]);
+    s.push(`The analysis identified ${c.roots.length} root cause${c.roots.length > 1 ? "s" : ""} (${byType.map(x => x[1] + " " + x[0].toLowerCase()).join(", ")}): ${c.roots.map(r => r.text.replace(/\.$/, "").replace(/^./, ch => ch.toLowerCase())).slice(0, 3).join("; ")}.`);
+  }
+  if (c.capa.length) s.push(`${c.capa.length} corrective and preventive action${c.capa.length > 1 ? "s are" : " is"} proposed, each linked to a root cause and set up to be carried in Maximo.`);
+  return s.join(" ");
+}
+
+/* ---------- SVG builders (shared by the app and the report) ---------- */
+const PAL = { navy: "#3D72AD", teal: "#0F9D8A", amber: "#E8A33D", red: "#C8473B", green: "#2E8B57", grey: "#5B6675", line: "#D5DCE4", ink: "#1C2430", soft: "#F5F7FA" };
+function timelineSVG(c, accent) {
+  const ev = [...c.timeline].filter(t => t.at || t.text).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  if (!ev.length) return "";
+  const W = 1000, H = 300, y0 = 150, pad = 70;
+  const step = ev.length > 1 ? (W - pad * 2) / (ev.length - 1) : 0;
+  const col = k => k === "failure" ? PAL.red : k === "initiating" ? PAL.amber : k === "restore" ? PAL.green : k === "response" ? PAL.teal : (accent || PAL.navy);
+  let g = `<line x1="30" y1="${y0}" x2="${W - 30}" y2="${y0}" stroke="${PAL.line}" stroke-width="3"/>`;
+  ev.forEach((t, i) => {
+    const x = ev.length > 1 ? pad + i * step : W / 2; const up = i % 2 === 0;
+    const ly = up ? y0 - 34 : y0 + 34;
+    const lines = wrapLines(t.text, ev.length > 7 ? 18 : 24, 3);
+    const big = t.kind === "failure" || t.kind === "initiating";
+    g += `<line x1="${x}" y1="${y0}" x2="${x}" y2="${up ? y0 - 26 : y0 + 26}" stroke="${PAL.line}" stroke-width="1.5"/>`;
+    g += `<circle cx="${x}" cy="${y0}" r="${big ? 9 : 6}" fill="${col(t.kind)}" stroke="#fff" stroke-width="2"/>`;
+    const baseY = up ? ly - (lines.length) * 13 - 4 : ly + 12;
+    g += `<text x="${x}" y="${baseY}" text-anchor="middle" font-size="11" font-weight="700" fill="${col(t.kind)}">${esc(fmtDT(t.at))}</text>`;
+    lines.forEach((ln, li) => g += `<text x="${x}" y="${baseY + 14 + li * 13}" text-anchor="middle" font-size="11" fill="${PAL.ink}">${esc(ln)}</text>`);
+    if (big) g += `<text x="${x}" y="${up ? y0 + 26 : y0 - 18}" text-anchor="middle" font-size="9.5" font-weight="700" letter-spacing=".06em" fill="${col(t.kind)}">${t.kind === "failure" ? "POINT OF FAILURE" : "INITIATING EVENT"}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Timeline of events" font-family="Inter, system-ui, sans-serif">${g}</svg>`;
+}
+function historySVG(c, h, accent) {
+  const ms = h.months; if (!ms.length) return "";
+  const W = 1000, H = 260, L = 46, R = 16, T = 40, B = 40;
+  const max = Math.max(2, ...ms.map(m => m.n));
+  const bw = (W - L - R) / ms.length;
+  let g = `<text x="${L}" y="20" font-size="13" font-weight="700" fill="${PAL.ink}">${esc(historyTitle(c, h))}</text>`;
+  for (let v = 0; v <= max; v++) { const y = T + (H - T - B) * (1 - v / max); g += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="${PAL.line}" stroke-width="${v ? .7 : 1.2}"/><text x="${L - 8}" y="${y + 4}" text-anchor="end" font-size="10.5" fill="${PAL.grey}">${v}</text>`; }
+  g += `<text transform="translate(12 ${T + (H - T - B) / 2}) rotate(-90)" text-anchor="middle" font-size="10.5" fill="${PAL.grey}">Corrective WOs per month</text>`;
+  const every = Math.ceil(ms.length / 12);
+  ms.forEach((m, i) => {
+    const x = L + i * bw; const hgt = (H - T - B) * (m.n / max);
+    if (m.n) g += `<rect x="${x + bw * .18}" y="${H - B - hgt}" width="${bw * .64}" height="${hgt}" rx="2" fill="${m.ev ? PAL.red : (accent || PAL.navy)}"/>`;
+    if (m.ev) g += `<text x="${x + bw / 2}" y="${H - B - hgt - 6}" text-anchor="middle" font-size="10" font-weight="700" fill="${PAL.red}">This event</text>`;
+    if (i % every === 0 || m.ev) g += `<text x="${x + bw / 2}" y="${H - B + 16}" text-anchor="middle" font-size="10" fill="${m.ev ? PAL.red : PAL.grey}">${MONTHS[m.m]}${m.m === 0 || i === 0 ? " " + String(m.y).slice(2) : ""}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Failures per month" font-family="Inter, system-ui, sans-serif">${g}</svg>`;
+}
+function fishboneSVG(c, accent) {
+  const W = 1080, H = 470, sy = 235, headX = 880;
+  const brand = accent || PAL.navy;
+  const prob = c.meta.title || c.problem.what || "Problem";
+  let g = `<line x1="30" y1="${sy}" x2="${headX}" y2="${sy}" stroke="${brand}" stroke-width="4" stroke-linecap="round"/>`;
+  g += `<path d="M${headX} ${sy - 70} L${W - 12} ${sy - 70} L${W - 12} ${sy + 70} L${headX} ${sy + 70} Z" fill="${brand}"/>`;
+  wrapLines(prob, 22, 5).forEach((ln, i, a) => g += `<text x="${(headX + W - 12) / 2}" y="${sy - (a.length - 1) * 8.5 + i * 17 + 4}" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">${esc(ln)}</text>`);
+  const xs = [250, 460, 670];
+  CATS.forEach((cat, ci) => {
+    const top = ci < 3, lx = xs[ci % 3];
+    const y0 = top ? 44 : H - 44, x1 = lx + 150;
+    g += `<line x1="${lx}" y1="${y0}" x2="${x1}" y2="${sy}" stroke="${PAL.grey}" stroke-width="2"/>`;
+    g += `<rect x="${lx - 52}" y="${top ? y0 - 30 : y0 + 4}" width="104" height="24" rx="4" fill="${PAL.soft}" stroke="${PAL.line}"/><text x="${lx}" y="${top ? y0 - 13 : y0 + 21}" text-anchor="middle" font-size="12" font-weight="700" fill="${PAL.ink}">${cat.k}</text>`;
+    const items = c.fishbone[cat.k].filter(z => z.text); const shown = items.slice(0, 5);
+    shown.forEach((z, i) => {
+      const t = (i + 1) / (Math.max(shown.length, 3) + 1); const x = lx + (x1 - lx) * t, y = y0 + (sy - y0) * t;
+      const col = z.status === "root" ? (PAL.teal) : z.status === "ruled" ? "#9AA4B1" : PAL.ink;
+      g += `<line x1="${x - 14}" y1="${y}" x2="${x}" y2="${y}" stroke="${z.status === "root" ? PAL.teal : PAL.line}" stroke-width="${z.status === "root" ? 2.5 : 1.5}"/>`;
+      g += `<text x="${x - 18}" y="${y + 4}" text-anchor="end" font-size="11" ${z.status === "root" ? 'font-weight="700"' : ""} ${z.status === "ruled" ? 'text-decoration="line-through"' : ""} fill="${col}">${esc(trunc(z.text, 30))}</text>`;
+    });
+    if (items.length > 5) g += `<text x="${x1 - 10}" y="${top ? sy - 10 : sy + 18}" text-anchor="end" font-size="10" fill="${PAL.grey}">+${items.length - 5} more</text>`;
+  });
+  g += `<g font-size="10.5" fill="${PAL.grey}"><rect x="${headX}" y="14" width="10" height="3" fill="${PAL.teal}"/><text x="${headX + 16}" y="18">Root cause</text><rect x="${headX}" y="30" width="10" height="3" fill="${PAL.line}"/><text x="${headX + 16}" y="34">Candidate</text><text x="${headX}" y="50" text-decoration="line-through">Ruled out</text></g>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Fishbone diagram" font-family="Inter, system-ui, sans-serif">${g}</svg>`;
+}
+
+/* ---------- report ---------- */
+function reportCSS(brand) {
+  return `
+  .rpt{--brand:${brand};--teal:#0F9D8A;--amber:#E8A33D;--red:#C8473B;--green:#2E8B57;--ink:#1C2430;--muted:#5B6675;--line:#DCE2E9;--soft:#F5F7FA;
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:#F1F4F8;font-size:13.5px;line-height:1.55;padding:24px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rpt *{box-sizing:border-box}
+  .rpt .pg{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  .rpt .cover{background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 70%,#5FC9B8));color:#fff;border-radius:8px;padding:34px 36px;display:grid;grid-template-columns:1fr auto;gap:20px}
+  .rpt .cover .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.8;font-weight:600}
+  .rpt .cover h1{font-size:30px;line-height:1.15;margin:8px 0 18px;font-weight:700;text-wrap:balance;max-width:24ch}
+  .rpt .cover dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 22px;margin:0}
+  .rpt .cover dt{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
+  .rpt .cover dd{margin:0;font-weight:600;font-size:13px}
+  .rpt .cover .logo{background:#fff;border-radius:6px;padding:8px;height:64px;max-width:180px;display:grid;place-items:center}
+  .rpt .cover .logo img{max-height:48px;max-width:164px}
+  .rpt section{background:#fff;border-radius:8px;padding:26px 30px;border:1px solid var(--line)}
+  .rpt h2{font-size:17px;margin:0 0 4px;color:var(--brand);font-weight:700;display:flex;gap:10px;align-items:baseline}
+  .rpt h2 .no{font-size:12px;color:var(--teal);font-weight:700}
+  .rpt .lead{color:var(--muted);margin:0 0 14px;font-size:12.5px}
+  .rpt p{margin:0 0 10px;max-width:80ch}
+  .rpt .tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+  .rpt .tile{background:#FAFBFD;border:1px solid var(--line);border-radius:8px;padding:12px 14px;border-top:3px solid var(--brand)}
+  .rpt .tile.red{border-top-color:var(--red)} .rpt .tile.amber{border-top-color:var(--amber)}
+  .rpt .tile .k{font-size:11px;color:var(--muted)} .rpt .tile .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .rpt .stmt{font-size:16px;font-weight:600;border-left:4px solid var(--brand);padding:6px 0 6px 14px;margin:6px 0 16px;max-width:80ch}
+  .rpt .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .rpt table{border-collapse:collapse;width:100%;font-size:12px}
+  .rpt th,.rpt td{padding:7px 9px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+  .rpt th{background:color-mix(in srgb,var(--brand) 12%,#fff);color:color-mix(in srgb,var(--brand) 80%,#000);font-weight:700;font-size:11px;white-space:nowrap;border-bottom:2px solid color-mix(in srgb,var(--brand) 35%,#fff)}
+  .rpt th[data-sort]{cursor:pointer}
+  .rpt tbody tr:nth-child(even) td{background:var(--soft)}
+  .rpt td.num,.rpt th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .rpt .kv td:first-child{color:var(--muted);width:42%}
+  .rpt .tw{overflow-x:auto}
+  .rpt .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:700;white-space:nowrap}
+  .rpt .pill.red{background:#F8E4E1;color:#A3362B} .rpt .pill.amber{background:#FBF0DD;color:#94600F} .rpt .pill.green{background:#E2F2E8;color:#226B43} .rpt .pill.navy{background:#E8F0F9;color:#2F5D8C} .rpt .pill.teal{background:#E3F4F1;color:#0B7366} .rpt .pill.grey{background:#EEF1F4;color:#5B6675}
+  .rpt .fig{overflow-x:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:6px 0 12px}
+  .rpt .fig svg{display:block;width:100%;min-width:680px}
+  .rpt .chain{margin-bottom:18px}
+  .rpt .chain h3{font-size:13.5px;margin:0 0 10px}
+  .rpt .wcard{display:grid;grid-template-columns:70px 1fr;gap:12px;background:var(--soft);border-radius:8px;padding:10px 14px;margin-bottom:6px;border-left:3px solid var(--line)}
+  .rpt .wcard .q{font-weight:700;color:var(--teal);font-size:12px}
+  .rpt .wcard .e{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .rpt .wcard.root{background:#E3F4F1;border-left-color:var(--teal)}
+  .rpt .wcard.root .q::after{content:" · root";}
+  .rpt .callout{background:#FBF0DD;border-radius:8px;padding:12px 16px;font-size:12.5px;margin-top:10px}
+  .rpt .callout.ok{background:#E2F2E8}
+  .rpt .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11.5px}
+  .rpt ul{margin:4px 0 10px;padding-left:18px} .rpt li{margin-bottom:4px}
+  .rpt .foot{text-align:center;color:var(--muted);font-size:11px;padding:4px 0 10px}
+  @media (max-width:760px){.rpt .tiles{grid-template-columns:repeat(2,1fr)}.rpt .two{grid-template-columns:1fr}.rpt .cover{grid-template-columns:1fr;padding:24px}.rpt section{padding:20px 18px}}
+  @page{size:A4;margin:15mm}
+  @media print{.rpt{background:#fff;padding:0;font-size:11.5px}.rpt .pg{max-width:none;gap:0}.rpt section,.rpt .cover{border-radius:0;border:0;padding:0 0 10mm;break-inside:auto}
+    .rpt .cover{padding:14mm 12mm;margin-bottom:8mm}.rpt section.brk{break-before:page}.rpt .fig svg{min-width:0}.rpt .tiles{grid-template-columns:repeat(5,1fr)}.rpt .two{grid-template-columns:1fr 1fr}.rpt tr,.rpt .wcard{break-inside:avoid}.rpt .foot{display:none}}
+  `;
+}
+function buildReport(c) {
+  const m = c.meta, k = costOf(c), h = historyOf(c), cur = c.impact.currency, brand = (!m.brand || m.brand.toUpperCase() === "#1F3A5F") ? "#3D72AD" : m.brand;
+  const st = statementOf(c);
+  const summary = (c.summary || "").trim() || autoSummary(c);
+  const confPill = v => `<span class="pill ${v === "High" ? "green" : v === "Medium" ? "amber" : "red"}">${esc(v || "Not rated")}</span>`;
+  const typePill = v => `<span class="pill ${v === "Physical" ? "navy" : v === "Human" ? "amber" : "teal"}">${esc(v)}</span>`;
+  const rcLabel = id => { const i = c.roots.findIndex(r => r.id === id); return i < 0 ? "–" : "RC" + (i + 1); };
+  const hypo = [
+    ...c.roots.filter(r => !r.evidence || r.confidence === "Low").map(r => r.text + " (" + (r.evidence ? "low confidence" : "no supporting evidence yet") + ")"),
+    ...CATS.flatMap(cat => c.fishbone[cat.k].filter(z => z.status === "candidate" && z.text).map(z => z.text + " (" + cat.k + ", candidate not yet tested)"))
+  ];
+  const verified = c.roots.filter(r => r.evidence && r.confidence !== "Low");
+  const tl = [...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const p = c.pcr;
+  const sec = (no, title, lead, body, brk) => `<section class="${brk ? "brk" : ""}"><h2><span class="no">${no}</span>${title}</h2>${lead ? `<p class="lead">${lead}</p>` : ""}${body}</section>`;
+  let html = `<div class="rpt"><div class="pg">
+  <div class="cover"><div><div class="k">Root Cause Analysis</div><h1>${esc(m.title || "Untitled event")}</h1>
+    <dl><div><dt>Customer</dt><dd>${esc(m.customer || "–")}</dd></div><div><dt>Site</dt><dd>${esc(m.site || "–")}</dd></div><div><dt>Asset</dt><dd>${esc(m.asset || "–")}${m.assetDesc ? "<br><span style=\"font-weight:400;opacity:.85\">" + esc(m.assetDesc) + "</span>" : ""}</dd></div><div><dt>Event date</dt><dd>${fmtDate(m.eventDate) || "–"}</dd></div>
+    <div><dt>Report ID</dt><dd>${esc(m.reportId)} rev ${esc(m.revision)}</dd></div><div><dt>Author</dt><dd>${esc(m.author || "–")}</dd></div><div><dt>Report date</dt><dd>${fmtDate(m.reportDate)}</dd></div></dl></div>
+    ${m.logo ? `<div class="logo"><img src="${m.logo}" alt="${esc(m.customer)} logo"></div>` : ""}</div>`;
+  html += sec("1", "Executive summary", "", `<p>${esc(summary)}</p>
+    <div class="tiles"><div class="tile amber"><div class="k">Downtime</div><div class="v">${fmtN(num(c.impact.downtimeHrs), 1)} h</div></div>
+    <div class="tile red"><div class="k">Cost of failure</div><div class="v">${fmtMoney(k.total, cur)}</div></div>
+    <div class="tile ${h.repeat ? "red" : ""}"><div class="k">Repeat failures in period</div><div class="v">${h.priorSame.length}</div></div>
+    <div class="tile"><div class="k">Root causes</div><div class="v">${c.roots.length}</div></div>
+    <div class="tile"><div class="k">Actions</div><div class="v">${c.capa.length}</div></div></div>`);
+  html += sec("2", "Problem statement and impact", "", `${st ? `<div class="stmt">${esc(st)}</div>` : ""}
+    <div class="two"><table class="kv"><tbody>
+      <tr><td>Main consequence</td><td>${esc(c.impact.consequence)}</td></tr><tr><td>Safety</td><td>${esc(c.impact.safety || "–")}</td></tr><tr><td>Environment</td><td>${esc(c.impact.env || "–")}</td></tr>
+      <tr><td>Location</td><td>${esc(m.location || "–")}</td></tr><tr><td>RCA team</td><td>${esc(m.team || "–")}</td></tr></tbody></table>
+    <table class="kv"><tbody>
+      <tr><td>Downtime</td><td class="num">${fmtN(num(c.impact.downtimeHrs), 2)} h</td></tr>
+      <tr><td>Lost production (${fmtN(num(c.impact.downtimeHrs), 2)} h × ${fmtMoney(num(c.impact.prodRate), cur)}/h)</td><td class="num">${fmtMoney(k.downtime, cur)}</td></tr>
+      <tr><td>Repair labour</td><td class="num">${fmtMoney(k.labour, cur)}</td></tr><tr><td>Parts and materials</td><td class="num">${fmtMoney(k.parts, cur)}</td></tr><tr><td>Other</td><td class="num">${fmtMoney(k.other, cur)}</td></tr>
+      <tr><td><b>Cost of failure</b></td><td class="num"><b>${fmtMoney(k.total, cur)}</b></td></tr></tbody></table></div>
+    <div class="callout ${p.match === "yes" ? "ok" : ""}"><b>Maximo failure coding.</b> Recorded as <span class="mono">${esc([p.failureClass, p.problem, p.cause, p.remedy].filter(Boolean).join(" › ") || "not recorded")}</span> (failure class › problem › cause › remedy).
+      ${p.match === "no" ? ` The coded cause does not match the verified root cause. Recommended cause code: <b>${esc(p.recommended || "to be agreed")}</b>. This is a coding-quality finding.` : p.match === "yes" ? " The coded cause matches the verified root cause." : " Coding not yet checked against the root cause."}</div>`);
+  html += sec("3", "Sequence of events", tl.length + " events from the evidence, in order. Markers are evenly spaced in sequence, not to time scale.", tl.length ? `<div class="fig">${timelineSVG(c, brand)}</div>
+    <div class="tw"><table><thead><tr><th>Date and time</th><th>Type</th><th>Event</th><th>Source</th></tr></thead><tbody>${tl.map(t => `<tr><td style="white-space:nowrap">${fmtDT(t.at)}</td><td>${t.kind === "failure" ? '<span class="pill red">Point of failure</span>' : t.kind === "initiating" ? '<span class="pill amber">Initiating event</span>' : esc(TL_KINDS[t.kind] || "")}</td><td>${esc(t.text)}</td><td>${esc(t.source)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No events recorded.</p>", true);
+  html += sec("4", "Failure history", h.fails.length ? `${h.fails.length} corrective work orders on ${esc(m.asset)}; MTBF ${h.mtbf ? fmtN(h.mtbf) + " days" : "not calculable"}; corrective cost in period ${fmtMoney(h.cost, cur)}.` : "", h.months.length ? `<div class="fig">${historySVG(c, h, brand)}</div>
+    ${h.same.length ? `<div class="tw"><table><thead><tr><th>WO</th><th>Date</th><th>Type</th><th>Problem</th><th>Cause</th><th class="num">Cost</th><th>Description</th></tr></thead><tbody>${h.same.map(r => `<tr><td class="mono">${esc(r.wonum)}</td><td style="white-space:nowrap">${fmtDate(isoDay(r.d))}</td><td>${esc(r.worktype)}</td><td>${esc(r.problem)}</td><td>${esc(r.cause)}</td><td class="num">${fmtN(num(r.cost))}</td><td>${esc(r.desc)}</td></tr>`).join("")}</tbody></table></div><p class="lead" style="margin-top:6px">Work orders with the same problem code (${esc(p.problem)}).</p>` : ""}` : "<p>No work order history was loaded for this asset.</p>");
+  html += sec("5", "Cause analysis: fishbone (6M)", "Candidate causes by category. Root causes are highlighted; ruled-out causes are struck through.", `<div class="fig">${fishboneSVG(c, brand)}</div>`, true);
+  html += sec("6", "Cause analysis: 5 Whys", "", c.whys.length ? c.whys.map(w => `<div class="chain"><h3>${esc(w.title)}</h3>${w.steps.filter(s => s.text).map((s, i, a) => `<div class="wcard ${i === a.length - 1 ? "root" : ""}"><div class="q">Why ${i + 1}</div><div>${esc(s.text)}${s.evidence ? `<div class="e">Evidence: ${esc(s.evidence)}</div>` : ""}</div></div>`).join("")}</div>`).join("") : "<p>No 5 Whys chains recorded.</p>");
+  html += sec("7", "Root causes", "Physical root: the component mechanism. Human root: the decision or action. Latent root: the organisational gap that allowed it.", c.roots.length ? `<div class="tw"><table><thead><tr><th>#</th><th>Root cause</th><th>Type</th><th>Evidence</th><th>Confidence</th></tr></thead><tbody>${c.roots.map((r, i) => `<tr><td><b>RC${i + 1}</b></td><td>${esc(r.text)}</td><td>${typePill(r.type)}</td><td>${esc(r.evidence || "No evidence yet")}</td><td>${confPill(r.confidence)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No root causes recorded.</p>", true);
+  html += sec("8", "Corrective and preventive actions", "Ordered by the hierarchy of controls. Each action names the Maximo object that will carry it. Click a column heading to sort.", c.capa.length ? `<div class="tw"><table id="capaT"><thead><tr><th data-sort="0">#</th><th data-sort="1">Action</th><th data-sort="2">Root cause</th><th data-sort="3">Type</th><th data-sort="4">Maximo object</th><th data-sort="5">Owner</th><th data-sort="6">Due</th><th data-sort="7">Status</th><th>Effectiveness check</th></tr></thead><tbody>${[...c.capa].sort((a, b) => CAPA_TYPES.indexOf(a.type) - CAPA_TYPES.indexOf(b.type)).map((a, i) => `<tr><td>${i + 1}</td><td>${esc(a.action)}</td><td><b>${rcLabel(a.rootId)}</b></td><td><span class="pill ${a.type === "Eliminate" ? "green" : a.type === "Engineer" ? "teal" : a.type === "Monitor" ? "grey" : "navy"}">${esc(a.type)}</span></td><td>${esc(a.mobj)}</td><td>${esc(a.owner)}</td><td data-v="${esc(a.due)}" style="white-space:nowrap">${fmtDate(a.due)}</td><td>${esc(a.status)}</td><td>${esc(a.check)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No actions recorded.</p>");
+  const src = c.woSource;
+  html += sec("A", "Appendix", "", `<div class="two"><div><h3 style="font-size:13px;margin:0 0 6px">Data sources</h3><ul>
+      ${src ? `<li>${esc(src.file)}: ${fmtN(src.totalRows)} rows in file, ${fmtN(src.keptRows)} kept for ${esc(m.asset)}, ${fmtDate(src.dateFrom)} to ${fmtDate(src.dateTo)}, ${src.dupes} duplicate work orders removed. PM and inspection work types excluded from failure counts.</li>
+      <li>Column mapping: <span class="mono">${Object.entries(src.mapping || {}).map(([a, b]) => esc(b) + " → " + a).join(", ")}</span></li>` : "<li>No CMMS export loaded.</li>"}
+      ${[...new Set(tl.map(t => t.source).filter(Boolean))].map(s => `<li>${esc(s)}</li>`).join("")}</ul>
+      <h3 style="font-size:13px;margin:12px 0 6px">Assumptions</h3><ul>${[c.impact.notes, c.assumptions].filter(Boolean).map(a => `<li>${esc(a)}</li>`).join("") || "<li>None recorded.</li>"}</ul></div>
+    <div><h3 style="font-size:13px;margin:0 0 6px">Hypotheses requiring verification</h3><ul>${hypo.map(x => `<li>${esc(x)}</li>`).join("") || "<li>None. All root causes are supported by evidence.</li>"}</ul>
+      ${c.dataNeeded ? `<h3 style="font-size:13px;margin:12px 0 6px">Data that would confirm open causes</h3><p>${esc(c.dataNeeded)}</p>` : ""}
+      <h3 style="font-size:13px;margin:12px 0 6px">Method</h3><p>Problem statement (what, where, when, impact), sequence of events, failure history from CMMS work orders, 6M fishbone, 5 Whys to a controllable cause, evidence test with confidence rating (${verified.length} of ${c.roots.length} root causes verified), and CAPA by the hierarchy of controls with an effectiveness check per action. Failure coding follows Maximo failure class › problem › cause › remedy.</p></div></div>`, true);
+  html += `<div class="foot">${esc(m.reportId)} rev ${esc(m.revision)} · ${esc(m.customer)} · Generated ${fmtDate(isoDay(new Date()))}</div></div></div>`;
+  return { css: reportCSS(brand), html };
+}
+const SORT_JS = `document.querySelectorAll('#capaT th[data-sort]').forEach(function(th){th.addEventListener('click',function(){var t=th.closest('table'),b=t.tBodies[0],i=+th.dataset.sort,asc=th.dataset.dir!=='asc';th.dataset.dir=asc?'asc':'desc';var rows=[].slice.call(b.rows);rows.sort(function(x,y){var a=x.cells[i].dataset.v||x.cells[i].textContent,c=y.cells[i].dataset.v||y.cells[i].textContent;var na=parseFloat(a),nc=parseFloat(c);var r=(!isNaN(na)&&!isNaN(nc)&&i===0)?na-nc:a.localeCompare(c);return asc?r:-r});rows.forEach(function(r){b.appendChild(r)})})})`;
+function reportDocument(c) {
+  const r = buildReport(c);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.meta.reportId)} ${esc(c.meta.title)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=IBM+Plex+Mono&display=swap"><style>body{margin:0}${r.css}</style></head><body>${r.html}<script>${SORT_JS}<\/script></body></html>`;
+}
+
+/* ---------- import ---------- */
+const normKey = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+function guessMapping(headers) {
+  const map = {};
+  WO_FIELDS.forEach(f => {
+    const hit = headers.find(h => f.alias.includes(normKey(h))) || headers.find(h => f.alias.some(a => a.length > 4 && normKey(h).includes(a)));
+    if (hit && !Object.values(map).includes(hit)) map[f.k] = hit;
+  });
+  return map;
+}
+async function readWOFile(file) {
+  if (typeof XLSX === "undefined") { toast("The spreadsheet reader did not load. Check your connection and reload."); return; }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array", cellDates: true, raw: false, dateNF: "yyyy-mm-dd" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
+    if (!rows.length) { toast("No rows found in " + file.name); return; }
+    const headers = Object.keys(rows[0]);
+    S.pendingImport = { file: file.name, rows, headers, map: guessMapping(headers), asset: "" };
+    const mp = S.pendingImport.map;
+    if (mp.asset) {
+      const counts = assetCounts(S.pendingImport);
+      const want = (S.cur.meta.asset || "").toLowerCase();
+      S.pendingImport.asset = (counts.find(([a]) => a.toLowerCase() === want) || counts[0] || [""])[0];
+    }
+    S.step = "history"; rerender();
+  } catch (e) { console.warn(e); toast("Could not read " + file.name + ". Save it as CSV or XLSX and try again."); }
+}
+function assetCounts(imp) {
+  const col = imp.map.asset; if (!col) return [];
+  const m = new Map(); imp.rows.forEach(r => { const a = String(r[col] || "").trim(); if (a) m.set(a, (m.get(a) || 0) + 1); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+function importMapper(c, imp) {
+  const counts = assetCounts(imp);
+  const opts = ['<option value="">(not in file)</option>', ...imp.headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`)];
+  const dCol = imp.map.date; const dates = dCol ? imp.rows.map(r => parseDate(r[dCol])).filter(Boolean) : [];
+  const wCol = imp.map.wonum; const dupes = wCol ? imp.rows.length - new Set(imp.rows.map(r => String(r[wCol]))).size : 0;
+  const missingCost = imp.map.cost ? imp.rows.filter(r => r[imp.map.cost] === "" || r[imp.map.cost] == null).length : imp.rows.length;
+  return `<div class="ai-box" style="background:var(--surface-2);border-color:var(--line)">
+    <div class="row" style="justify-content:space-between"><b>${esc(imp.file)}</b><span class="note">${fmtN(imp.rows.length)} rows · ${dates.length ? fmtDate(isoDay(new Date(Math.min(...dates)))) + " to " + fmtDate(isoDay(new Date(Math.max(...dates)))) : "no dates mapped"} · ${dupes} duplicate WOs · cost blank on ${missingCost} rows</span></div>
+    <p class="note" style="margin:6px 0 12px">Check the column mapping. Fields recognised automatically are already set.</p>
+    <div class="map-grid">${WO_FIELDS.map(f => `<label class="f" for="map_${f.k}"><span>${f.label}</span><select id="map_${f.k}" data-map="${f.k}">${opts.join("").replace(`value="${esc(imp.map[f.k] || "")}"`, `value="${esc(imp.map[f.k] || "")}" selected`)}</select></label>`).join("")}</div>
+    ${counts.length ? `<div class="grid" style="margin-top:12px"><label class="f" for="map_asset_pick"><span>Keep work orders for asset (${counts.length} assets in file)</span><select id="map_asset_pick" data-mapasset="1">${counts.slice(0, 300).map(([a, n]) => `<option value="${esc(a)}" ${a === imp.asset ? "selected" : ""}>${esc(a)} (${n})</option>`).join("")}</select></label></div>` : `<p class="warn">Map the Asset column to filter to one asset.</p>`}
+    <div class="row" style="margin-top:12px"><button class="btn teal" data-act="apply-import">Import work orders</button><button class="btn ghost" data-act="cancel-import">Cancel</button></div></div>`;
+}
+function applyImport() {
+  const imp = S.pendingImport, c = S.cur, mp = imp.map;
+  const seen = new Set(); let dupes = 0;
+  const out = [];
+  imp.rows.forEach(r => {
+    const o = {}; WO_FIELDS.forEach(f => { let v = mp[f.k] ? r[mp[f.k]] : ""; if (f.k === "date" || f.k === "finish") { const d = parseDate(v); v = d ? isoDay(d) : ""; } o[f.k] = v instanceof Date ? isoDay(v) : String(v ?? "").trim(); });
+    if (imp.asset && o.asset !== imp.asset) return;
+    if (o.wonum) { if (seen.has(o.wonum)) { dupes++; return; } seen.add(o.wonum); }
+    out.push(o);
+  });
+  const ds = out.map(o => parseDate(o.date)).filter(Boolean);
+  c.wos = out.slice(0, 3000);
+  c.woSource = { file: imp.file, totalRows: imp.rows.length, keptRows: c.wos.length, dateFrom: ds.length ? isoDay(new Date(Math.min(...ds))) : "", dateTo: ds.length ? isoDay(new Date(Math.max(...ds))) : "", dupes, mapping: Object.fromEntries(Object.entries(mp).filter(([, v]) => v)) };
+  if (imp.asset && !c.meta.asset) c.meta.asset = imp.asset;
+  if (imp.asset && c.meta.asset !== imp.asset) c.meta.asset = imp.asset;
+  S.pendingImport = null; touch(); rerender(); toast(c.wos.length + " work orders imported");
+}
+
+/* ---------- exports ---------- */
+async function offer(filename, data) {
+  if (!S.downloads && STANDALONE) {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: filename.endsWith(".html") ? "text/html" : filename.endsWith(".json") ? "application/json" : "application/octet-stream" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast("Saved " + filename); return;
+  }
+  if (!S.downloads) { toast("Downloads are not available in this view"); return; }
+  try { await S.downloads.save({ filename, data }); toast("Saved " + filename); }
+  catch (e) { if (e && e.code === "declined") return; toast("Could not save the file (" + (e && e.code || "error") + ")"); }
+}
+const safeName = s => String(s || "rca").replace(/[^A-Za-z0-9_\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 80) || "rca";
+function exportXlsx() {
+  if (typeof XLSX === "undefined") { toast("The spreadsheet library did not load"); return; }
+  const c = S.cur; const wb = XLSX.utils.book_new();
+  const rc = id => { const i = c.roots.findIndex(r => r.id === id); return i < 0 ? "" : "RC" + (i + 1); };
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(c.capa.map((a, i) => ({ "#": i + 1, Action: a.action, "Root cause": rc(a.rootId), Type: a.type, "Maximo object": a.mobj, Owner: a.owner, Due: a.due, Status: a.status, "Effectiveness check": a.check }))), "CAPA register");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(c.roots.map((r, i) => ({ "#": "RC" + (i + 1), "Root cause": r.text, Type: r.type, Evidence: r.evidence, Confidence: r.confidence }))), "Root causes");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at))).map(t => ({ "Date time": t.at, Type: TL_KINDS[t.kind], Event: t.text, Source: t.source }))), "Timeline");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(c.wos.map(w => ({ WONUM: w.wonum, ASSETNUM: w.asset, LOCATION: w.location, ACTSTART: w.date, ACTFINISH: w.finish, WORKTYPE: w.worktype, ACTTOTALCOST: num(w.cost), FAILURECODE: w.failurecode, PROBLEM: w.problem, CAUSE: w.cause, REMEDY: w.remedy, DESCRIPTION: w.desc }))), "Work orders");
+  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  offer(safeName(c.meta.reportId + " " + c.meta.title) + ".xlsx", new Blob([out]));
+}
+
+/* ---------- Claude assist ---------- */
+function caseBrief(c) {
+  const h = historyOf(c);
+  return `Asset: ${c.meta.asset} (${c.meta.assetDesc}). Event date: ${c.meta.eventDate}.
+Problem statement: ${statementOf(c)}
+Maximo coding: class ${c.pcr.failureClass}, problem ${c.pcr.problem}, cause ${c.pcr.cause}, remedy ${c.pcr.remedy}.
+Timeline:\n${[...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at))).map(t => `- ${t.at} [${TL_KINDS[t.kind]}] ${t.text} (source: ${t.source})`).join("\n")}
+Failure history: ${h.fails.length} corrective WOs, ${h.same.length} with the same problem code, MTBF ${h.mtbf ? Math.round(h.mtbf) + " days" : "n/a"}.
+Existing fishbone causes:\n${CATS.map(k => k.k + ": " + c.fishbone[k.k].map(z => z.text + " [" + z.status + "]").join("; ")).join("\n")}
+Root causes:\n${c.roots.map((r, i) => `RC${i + 1} (${r.type}, ${r.confidence}): ${r.text}. Evidence: ${r.evidence}`).join("\n")}
+Actions: ${c.capa.length}. Cost of failure: ${fmtMoney(costOf(c).total, c.impact.currency)}. Downtime ${c.impact.downtimeHrs} h.`;
+}
+async function aiFish() {
+  const c = S.cur; S.ai.fish = "busy"; rerender();
+  try {
+    const res = await S.sample.json(`You are a reliability engineer helping with a root cause analysis. Using only the case facts below, suggest additional candidate causes for a 6M fishbone that are not already listed. Up to 3 per category, each under 70 characters, written as a specific, testable cause. Do not repeat existing causes. Return JSON exactly as {"Machine":[],"Method":[],"Material":[],"Manpower":[],"Measurement":[],"Environment":[]}.\n\n${caseBrief(c)}`, { modelTier: "default" });
+    let n = 0;
+    CATS.forEach(k => (Array.isArray(res && res[k.k]) ? res[k.k] : []).slice(0, 3).forEach(t => { if (typeof t === "string" && t.trim()) { c.fishbone[k.k].push({ id: uid(), text: t.trim().slice(0, 120), status: "candidate", suggested: true }); n++; } }));
+    S.ai.fish = n ? `Added ${n} suggested causes, marked below. Keep only those the evidence supports.` : "No new causes suggested.";
+    touch();
+  } catch (e) { S.ai.fish = e && e.code === "rate_limited" ? "Claude is busy. Try again in a minute." : e && e.code === "not_granted" ? "Claude assist was not allowed for this page." : "Could not get suggestions this time."; }
+  rerender();
+}
+async function aiSum() {
+  const c = S.cur; S.ai.sum = "busy"; rerender();
+  try {
+    const r = await S.sample(`Write the executive summary of a customer-facing root cause analysis report. 3 to 5 plain-English sentences for a site manager: what happened and the impact, whether it is a repeat failure, the root causes in plain terms, and what the actions will achieve. No headings, no bullet points, no em dashes, no invented facts. Return only the paragraph.\n\n${caseBrief(c)}`, { modelTier: "default" });
+    c.summary = (r.text || "").trim(); S.ai.sum = "Drafted by Claude from the case. Edit it before sending."; touch();
+  } catch (e) { S.ai.sum = e && e.code === "rate_limited" ? "Claude is busy. Try again in a minute." : "Could not draft a summary this time."; }
+  rerender();
+}
+
+/* ---------- events ---------- */
+function afterRender() {
+  const host = $("#reportHost");
+  if (host) { const r = buildReport(S.cur); const sh = host.shadowRoot || host.attachShadow({ mode: "open" }); sh.innerHTML = `<style>${r.css}</style>${r.html}`; }
+  const dz = $("#drop");
+  if (dz) {
+    dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("over"); });
+    dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+    dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) readWOFile(f); });
+  }
+}
+function liveUpdate(k) {
+  const c = S.cur;
+  if (k.startsWith("impact.")) { const el = $("#live-cost"); if (el) el.innerHTML = costTiles(c); }
+  if (k.startsWith("problem.")) { const el = $("#live-stmt"); if (el) el.innerHTML = stmtPreview(c); }
+  if (k === "meta.title") { const i = S.list.findIndex(x => x.id === c.id); if (i >= 0) S.list[i].title = c.meta.title || "Untitled RCA"; renderCaseSel(); }
+  if (k === "meta.brand") { const sp = $("#f_brand + .mono"); if (sp) sp.textContent = c.meta.brand; }
+  renderNav();
+}
+$("#main").addEventListener("input", e => {
+  const t = e.target;
+  if (t.dataset.map) { S.pendingImport.map[t.dataset.map] = t.value; if (t.dataset.map === "asset") { const ct = assetCounts(S.pendingImport); S.pendingImport.asset = ct[0] ? ct[0][0] : ""; } rerender(); return; }
+  if (t.dataset.mapasset) { S.pendingImport.asset = t.value; return; }
+  const k = t.dataset.k; if (!k || !S.cur) return;
+  let v = t.type === "checkbox" ? t.checked : t.value;
+  setPath(S.cur, k, v);
+  if (/^fishbone\.\w+\.\d+\.text$/.test(k)) { const z = getPath(S.cur, k.replace(/\.text$/, "")); if (z && z.suggested) z.suggested = false; }
+  touch();
+  if (t.dataset.rr || t.tagName === "SELECT" && t.dataset.rr) rerender(); else liveUpdate(k);
+});
+$("#main").addEventListener("change", e => {
+  // redraw diagrams after a text field is committed
+  const k = e.target.dataset.k || ""; if (/^(timeline|fishbone)\./.test(k) || k === "meta.title") { const box = e.target.closest(".card")?.querySelector(".svg-box"); if (box) box.innerHTML = S.step === "timeline" ? timelineSVG(S.cur) : fishboneSVG(S.cur); }
+  if (k === "meta.asset" || k === "pcr.problem") renderNav();
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const c = S.cur, a = b.dataset.act, i = +b.dataset.i;
+  const changed = () => { touch(); rerender(); };
+  switch (a) {
+    case "go": S.step = b.dataset.step; render(); window.scrollTo(0, 0); break;
+    case "new-case": newCase(); toast("New case started"); break;
+    case "load-example": { const ex = S.list.find(x => x.id === "example-cv201"); if (ex) loadCase(ex.id); else newCase(exampleCase()); break; }
+    case "delete-case": if (b.dataset.confirm) deleteCase(); else { b.dataset.confirm = "1"; b.textContent = "Click again to delete permanently"; b.style.color = "var(--red)"; } break;
+    case "logo": $("#fileLogo").click(); break;
+    case "logo-clear": c.meta.logo = ""; changed(); break;
+    case "add-tl": { const last = [...c.timeline].sort((x, y) => String(x.at).localeCompare(String(y.at))).pop(); c.timeline.push({ id: uid(), at: last ? last.at : (c.meta.eventDate || isoDay(new Date())) + "T08:00", kind: "event", text: "", source: "" }); changed(); break; }
+    case "sort-tl": c.timeline.sort((x, y) => String(x.at).localeCompare(String(y.at))); changed(); break;
+    case "del": c[b.dataset.list].splice(i, 1); changed(); break;
+    case "add-cause": c.fishbone[b.dataset.cat].push({ id: uid(), text: "", status: "candidate" }); changed(); setTimeout(() => { const ins = document.querySelectorAll(`[data-k^="fishbone.${b.dataset.cat}."][data-k$=".text"]`); ins[ins.length - 1]?.focus(); }, 0); break;
+    case "del-cause": c.fishbone[b.dataset.cat].splice(i, 1); changed(); break;
+    case "add-chain": c.whys.push({ id: uid(), title: "Why did " + (c.meta.asset || "the asset") + " fail?", steps: [{ text: "", evidence: "" }] }); changed(); break;
+    case "chain-from": c.whys.push({ id: uid(), title: "Path: " + b.dataset.text, steps: [{ text: b.dataset.text, evidence: "" }, { text: "", evidence: "" }] }); changed(); break;
+    case "add-why": c.whys[i].steps.push({ text: "", evidence: "" }); changed(); break;
+    case "del-why": c.whys[i].steps.splice(+b.dataset.j, 1); changed(); break;
+    case "promote": { const w = c.whys[i]; const last = [...w.steps].reverse().find(s => s.text); if (!last) { toast("Write the final why first"); break; } c.roots.push({ id: uid(), text: last.text, type: "Latent / systemic", evidence: last.evidence || "", confidence: last.evidence ? "Medium" : "Low" }); touch(); toast("Added to root causes (step 7)"); renderNav(); break; }
+    case "roots-from-fish": { let n = 0; CATS.forEach(k => c.fishbone[k.k].filter(z => z.status === "root" && z.text && !c.roots.some(r => r.text === z.text)).forEach(z => { c.roots.push({ id: uid(), text: z.text, type: k.k === "Manpower" ? "Human" : k.k === "Machine" || k.k === "Material" ? "Physical" : "Latent / systemic", evidence: "", confidence: "Low" }); n++; })); toast(n ? n + " root causes added from the fishbone" : "No new fishbone root causes to add"); changed(); break; }
+    case "add-root": c.roots.push({ id: uid(), text: "", type: "Physical", evidence: "", confidence: "Medium" }); changed(); break;
+    case "add-capa": c.capa.push({ id: uid(), action: "", rootId: c.roots[0]?.id || "", type: "Administrative", mobj: "PM", owner: "", due: "", check: "", status: "Proposed" }); changed(); break;
+    case "pick-wo": $("#fileWO").click(); break;
+    case "apply-import": applyImport(); break;
+    case "cancel-import": S.pendingImport = null; rerender(); break;
+    case "clear-wos": c.wos = []; c.woSource = null; changed(); break;
+    case "export-html": offer(safeName(c.meta.reportId + " " + c.meta.title) + ".html", reportDocument(c)); break;
+    case "export-xlsx": exportXlsx(); break;
+    case "print": { const r = buildReport(c); $("#printArea").innerHTML = `<style>${r.css}</style>${r.html}`; setTimeout(() => window.print(), 50); break; }
+    case "export-json": offer(safeName(c.meta.reportId + " case") + ".json", JSON.stringify(c, null, 2)); break;
+    case "import-json": $("#fileJSON").click(); break;
+    case "ai-fish": aiFish(); break;
+    case "ai-sum": aiSum(); break;
+  }
+});
+$("#casesel").addEventListener("change", e => { if (e.target.value === "__example") { S.pendingImport = null; S.ai = {}; newCase(exampleCase()); return; } if (e.target.value) { S.pendingImport = null; S.ai = {}; loadCase(e.target.value); } });
+$("#fileWO").addEventListener("change", e => { const f = e.target.files[0]; if (f) readWOFile(f); e.target.value = ""; });
+$("#fileJSON").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try { const c = normalise(JSON.parse(await f.text())); if (!c.meta) throw 0; if (S.list.some(x => x.id === c.id)) c.id = uid(); c.example = false; newCase(c); toast("Opened " + f.name); }
+  catch (err) { toast("That file is not an RCA case file"); }
+});
+$("#fileLogo").addEventListener("change", e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  const img = new Image(); const url = URL.createObjectURL(f);
+  img.onload = () => { const s = Math.min(1, 320 / img.width, 120 / img.height); const cv = document.createElement("canvas"); cv.width = Math.round(img.width * s); cv.height = Math.round(img.height * s); cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height); S.cur.meta.logo = cv.toDataURL("image/png"); URL.revokeObjectURL(url); touch(); rerender(); };
+  img.onerror = () => toast("That image could not be read");
+  img.src = url;
+});
+
+/* ---------- boot ---------- */
+async function boot() {
+  // first paint from this browser, then light up shared storage
+  const all = lsRead();
+  if (all && all.cases) S.list = Object.values(all.cases).map(c => ({ id: c.id, title: c.meta?.title || "Untitled RCA", updatedAt: c.updatedAt, example: !!c.example }));
+  if (all && all.last && all.cases[all.last]) S.cur = normalise(all.cases[all.last]);
+  else { S.cur = exampleCase(); }
+  if (!S.list.some(x => x.id === S.cur.id)) S.list.unshift({ id: S.cur.id, title: S.cur.meta.title, updatedAt: S.cur.updatedAt, example: !!S.cur.example });
+  render();
+  setSave("local", "Connecting…");
+  const cl = window.claude;
+  const [db, dl, sm] = await Promise.all([cl?.use?.("db") ?? null, cl?.use?.("downloads") ?? null, cl?.use?.("sample") ?? null].map(p => Promise.resolve(p).catch(() => null)));
+  S.downloads = dl; S.sample = sm;
+  if (db) {
+    S.db = db;
+    try {
+      const snap = await db.collection("cases").get();
+      const remote = snap.docs.map(d => d.data()).filter(Boolean);
+      const lsCases = (lsRead() || {}).cases || {};
+      // move any browser-only cases up to shared storage
+      for (const c of Object.values(lsCases)) { if (!remote.some(r => r.id === c.id)) { try { await db.doc("cases/" + c.id).set(c); remote.push(c); } catch (e) { } } }
+      S.list = remote.map(c => ({ id: c.id, title: c.meta?.title || "Untitled RCA", updatedAt: c.updatedAt, example: !!c.example }));
+      const lastId = (lsRead() || {}).last;
+      const pick = remote.find(c => c.id === lastId) || remote.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
+      if (pick) S.cur = normalise(pick);
+      else { S.list = [{ id: S.cur.id, title: S.cur.meta.title, updatedAt: S.cur.updatedAt, example: !!S.cur.example }]; await saveNow(); }
+      setSave("ok", "Saved");
+    } catch (e) { console.warn(e); S.db = null; setSave("local", "Saved in this browser only"); }
+  } else setSave("local", "Saved in this browser only");
+  rerender();
+}
+boot();
+</script>
+
+<script>
+// Offline support: register the service worker (sw.js). Bump CACHE in sw.js on every release.
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(e => console.warn("SW", e)));
+}
+</script>
+</body>
+</html>
