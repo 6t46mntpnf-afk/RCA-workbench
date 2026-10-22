@@ -1,0 +1,23 @@
+Copyright (c) 2026 Daniel. All rights reserved.
+
+RCA Workbench, including its source code, design, documentation and
+associated files (the "Software"), is proprietary and confidential to
+the copyright holder.
+
+No licence is granted to copy, modify, publish, distribute, sublicense,
+sell or create derivative works of the Software, in whole or in part,
+without the prior written permission of the copyright holder.
+
+Viewing the source code in this repository does not grant any rights to
+use it. Use of the hosted application is permitted only as authorised by
+the copyright holder.
+
+Third-party components are licensed separately:
+- SheetJS Community Edition 0.18.5 (vendor/xlsx.full.min.js),
+  Apache License 2.0, see vendor/xlsx-LICENSE.txt.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO
+EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+For licensing enquiries, contact the copyright holder.

@@ -18,8 +18,6 @@
 body { margin: 0 } img { max-width: 100% } [hidden] { display: none !important }
 </style>
 <title>RCA Workbench</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script src="vendor/xlsx.full.min.js"></script>
 <style>
 /* Layout: sticky header, step rail on the left (strip on phones), one working card per RCA step. House palette: navy / teal / amber / red. */
@@ -28,7 +26,7 @@ body { margin: 0 } img { max-width: 100% } [hidden] { display: none !important }
   --primary: #3D72AD; --primary-fg: #FFFFFF; --teal: #17A994; --teal-soft: #E8F7F4;
   --amber: #B97A16; --amber-soft: #FBF0DD; --red: #C8473B; --red-soft: #F8E4E1; --green: #2E8B57; --green-soft: #E2F2E8;
   --focus: #0F9D8A;
-  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: "Inter", "Segoe UI Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -174,7 +172,8 @@ table.t tr.hl td { background: var(--red-soft) }
   .card { padding: 16px }
 }
 #printArea { display: none }
-@media print { header.top, .shell, .toast, body::before { display: none !important } #printArea { display: block } body { background: #fff } }
+footer.legal { text-align: center; font-size: 11.5px; color: var(--muted); padding: 0 16px 28px }
+@media print { header.top, .shell, .toast, footer.legal, body::before { display: none !important } #printArea { display: block } body { background: #fff } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
 </style>
 </head>
@@ -201,6 +200,7 @@ table.t tr.hl td { background: var(--red-soft) }
 <input type="file" id="fileWO" accept=".csv,.xlsx,.xls,.txt" hidden>
 <input type="file" id="fileJSON" accept=".json" hidden>
 <input type="file" id="fileLogo" accept="image/*" hidden>
+<footer class="legal">© 2026 Daniel. All rights reserved. RCA Workbench is proprietary software; copying or redistribution without permission is not allowed.</footer>
 <div id="toast" class="toast" hidden></div>
 <div id="printArea"></div>
 
@@ -917,8 +917,7 @@ function buildReport(c) {
 const SORT_JS = `document.querySelectorAll('#capaT th[data-sort]').forEach(function(th){th.addEventListener('click',function(){var t=th.closest('table'),b=t.tBodies[0],i=+th.dataset.sort,asc=th.dataset.dir!=='asc';th.dataset.dir=asc?'asc':'desc';var rows=[].slice.call(b.rows);rows.sort(function(x,y){var a=x.cells[i].dataset.v||x.cells[i].textContent,c=y.cells[i].dataset.v||y.cells[i].textContent;var na=parseFloat(a),nc=parseFloat(c);var r=(!isNaN(na)&&!isNaN(nc)&&i===0)?na-nc:a.localeCompare(c);return asc?r:-r});rows.forEach(function(r){b.appendChild(r)})})})`;
 function reportDocument(c) {
   const r = buildReport(c);
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.meta.reportId)} ${esc(c.meta.title)}</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=IBM+Plex+Mono&display=swap"><style>body{margin:0}${r.css}</style></head><body>${r.html}<script>${SORT_JS}<\/script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.meta.reportId)} ${esc(c.meta.title)}</title><style>body{margin:0}${r.css}</style></head><body>${r.html}<script>${SORT_JS}<\/script></body></html>`;
 }
 
 /* ---------- import ---------- */

@@ -1,5 +1,7 @@
 # RCA Workbench
 
+© 2026 Daniel. All rights reserved. Proprietary software, see [LICENSE](LICENSE).
+
 A guided root cause analysis (RCA) app. It follows one fixed method for every customer:
 
 1. Event and impact (cost of failure, Maximo failure coding)
@@ -27,6 +29,8 @@ Open the hosted address (see "Hosting" below), then:
 Cases are saved in the browser on each device (localStorage). They do not sync between devices.
 To move or back up a case, use **Report & export › Case file (.json)**, then **Open case file** on the other device.
 Clearing the browser's site data deletes saved cases, so export case files you want to keep.
+
+The app makes no requests to outside servers: no accounts, analytics or tracking. Fonts fall back to the device's system font (Inter if it is installed).
 
 ## Files
 
