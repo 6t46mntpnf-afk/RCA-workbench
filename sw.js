@@ -1,6 +1,6 @@
 // RCA Workbench service worker: makes the app work offline.
 // On every release, change CACHE (e.g. "rca-v1.1.0") so installed apps pick up the new files.
-const CACHE = "rca-v1.0.1";
+const CACHE = "rca-v1.1.0";
 const SHELL = [
   "./",
   "index.html",

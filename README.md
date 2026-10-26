@@ -4,14 +4,14 @@
 
 A guided root cause analysis (RCA) app. It follows one fixed method for every customer:
 
-1. Event and impact (cost of failure, Maximo failure coding)
+1. Event and impact (cost of failure, failure coding with ISO 14224 dropdowns)
 2. Problem statement (what, where, when, impact; no cause words)
 3. Sequence of events (timeline)
-4. Failure history from a CMMS work order export (Maximo, SAP PM, Pronto; CSV or XLSX)
-5. 6M fishbone
+4. Failure history from a work order export from any maintenance system (CSV or XLSX)
+5. 6M fishbone (optional, switched on per case)
 6. 5 Whys
-7. Root causes (physical, human, latent) with evidence and confidence, plus a check of the Maximo cause code
-8. CAPA register (hierarchy of controls, owner, due date, Maximo object, effectiveness check)
+7. Root causes (physical, human, latent) with evidence and confidence, plus a check of the recorded cause code
+8. CAPA register (hierarchy of controls, owner, due date, how it is carried out, effectiveness check)
 9. Customer report: download as HTML, print to PDF (A4), Excel workbook, case file (.json)
 
 It installs on desktop and phone as an app (a Progressive Web App) and works offline.
@@ -46,7 +46,7 @@ The app makes no requests to outside servers: no accounts, analytics or tracking
 
 The script is split into labelled sections (search for `/* ----------`):
 
-- **constants**: the step list, 6M categories, CAPA types, Maximo objects, and `WO_FIELDS`, the column name aliases used to auto-map work order exports. Add a CMMS column name to an `alias` list (lower case, letters and digits only) to have it recognised.
+- **constants**: the step list, 6M categories, CAPA types, `CARRIED` (how actions are carried out), `LISTS` (all dropdown suggestion lists: failure coding, fishbone causes, owners, evidence sources, effectiveness checks), and `WO_FIELDS`, the column name aliases used to auto-map work order exports. Add a CMMS column name to an `alias` list (lower case, letters and digits only) to have it recognised.
 - **case model**: `blankCase()` (the data shape of one RCA) and `exampleCase()` (the worked example).
 - **calculations**: cost of failure, problem statement, failure history, MTBF and repeat-failure logic.
 - **step renderers**: `RENDER.event`, `RENDER.problem` and so on, one function per step.

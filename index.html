@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Guided root cause analysis with 6M fishbone, 5 Whys, Maximo failure history and CAPA, with a customer-ready report.">
+<meta name="description" content="Guided root cause analysis with 5 Whys, optional 6M fishbone, failure history and CAPA, with a customer-ready report.">
 <meta name="theme-color" content="#3D72AD">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
@@ -73,6 +73,7 @@ nav.steps .n { width: 22px; height: 22px; border-radius: 50%; border: 1.5px soli
 nav.steps .done .n { background: var(--teal); border-color: var(--teal); color: var(--primary-fg) }
 nav.steps .lbl { font-weight: 500; font-size: 13.5px }
 nav.steps .ct { font-size: 11px; font-variant-numeric: tabular-nums }
+nav.steps .opt { font-size: 10.5px; color: var(--muted); font-weight: 400 }
 nav.steps .sep { height: 1px; background: var(--line); margin: 8px 10px }
 
 main { min-width: 0 }
@@ -164,6 +165,13 @@ table.t tr.hl td { background: var(--red-soft) }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: 8px; font-size: 13px; z-index: 20 }
 .ai-box { border: 1px solid var(--teal); background: var(--teal-soft); border-radius: 8px; padding: 10px 12px; font-size: 13px }
 
+@media (max-width: 600px) {
+  .brand span, .case-pick label { display: none }
+  .top-in { gap: 8px }
+  .case-pick { flex-wrap: nowrap; width: 100% }
+  .case-pick select { flex: 1; max-width: none }
+  .save-state { font-size: 0 } .save-state::before { font-size: 14px }
+}
 @media (max-width: 900px) {
   .shell { grid-template-columns: minmax(0, 1fr) }
   nav.steps { position: static; flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px }
@@ -202,6 +210,7 @@ footer.legal { text-align: center; font-size: 11.5px; color: var(--muted); paddi
 <input type="file" id="fileLogo" accept="image/*" hidden>
 <footer class="legal">© 2026 Daniel. All rights reserved. RCA Workbench is proprietary software; copying or redistribution without permission is not allowed.</footer>
 <div id="toast" class="toast" hidden></div>
+<div id="lists" hidden></div>
 <div id="printArea"></div>
 
 <script>
@@ -230,7 +239,26 @@ const CATS = [
 const TL_KINDS = { event: "Event", initiating: "Initiating event", failure: "Point of failure", response: "Response", restore: "Returned to service" };
 const ROOT_TYPES = ["Physical", "Human", "Latent / systemic"];
 const CAPA_TYPES = ["Eliminate", "Engineer", "Administrative", "Monitor"];
-const MAXIMO_OBJ = ["PM", "Job Plan", "Meter", "Failure Code", "Reliability Strategy", "Other"];
+const CARRIED = ["PM / maintenance plan", "Job plan / task list", "Condition monitoring trigger", "Procedure / standard", "Design change / modification", "Training", "Spares / stores change", "Failure code update", "Maintenance strategy", "Other"];
+const CARRIED_OLD = { "PM": "PM / maintenance plan", "Job Plan": "Job plan / task list", "Meter": "Condition monitoring trigger", "Failure Code": "Failure code update", "Reliability Strategy": "Maintenance strategy" };
+/* Dropdown suggestion lists. Fields using them still accept free text. Failure coding lists follow ISO 14224 terms. */
+const LISTS = {
+  "dl-class": ["Bearing", "Belt / chain drive", "Compressor", "Conveyor", "Coupling", "Crusher", "Electric motor", "Fan / blower", "Gearbox", "Heat exchanger", "Hydraulic system", "Instrument", "Pipework", "Pump", "Structure", "Switchgear", "Transformer", "Valve", "Variable speed drive", "Other"],
+  "dl-mode": ["Abnormal instrument reading", "Abnormal noise", "Abnormal vibration", "Breakdown", "Erratic output", "External leakage", "Fails to close", "Fails to open", "Fails to start", "Fails to stop", "High output", "Internal leakage", "Low output / reduced capacity", "Overheating", "Plugged / choked", "Seized / stuck", "Spurious stop / trip", "Structural deficiency", "Other"],
+  "dl-mech": ["Blockage", "Breakage / fracture", "Cavitation", "Contamination", "Corrosion", "Deformation", "Earth fault", "Electrical overload", "Erosion", "Fatigue", "Imbalance", "Looseness", "Lubrication failure", "Material failure", "Misalignment", "Open circuit", "Overheating", "Short circuit", "Vibration", "Wear"],
+  "dl-cause": ["Design error", "Environmental (dust, water, heat)", "Improper installation", "Improper operation", "Inadequate maintenance", "Maintenance error", "Management / procedure gap", "Normal wear and tear", "Operating outside design limits", "PM not performed / overdue", "Poor lubrication practice", "Seal failure", "Wrong spare part", "Not known"],
+  "dl-remedy": ["Adjust / realign", "Clean", "Lubricate", "Modify / redesign", "Overhaul", "Refit / reset", "Repair", "Replace", "Temporary repair", "No action"],
+  "dl-source": ["Work order", "Shift log", "Operator interview", "Maintainer interview", "SCADA / DCS trend", "Alarm / trip log", "Inspection report", "Condition monitoring data", "Oil analysis", "Photos", "Teardown / failure analysis", "OEM manual", "Procedure / job plan history"],
+  "dl-owner": ["Maintenance Planner", "Maintenance Supervisor", "Maintenance Manager", "Reliability Engineer", "Condition Monitoring Technician", "Lubrication Technician", "Operations Supervisor", "Production Manager", "Engineering Manager", "Procurement / Stores", "Health and Safety Advisor", "Training Coordinator"],
+  "dl-check": ["No repeat failure in 12 months", "MTBF improves by 50% over 12 months", "Condition readings stay below alarm for 3 months", "Audit of next 20 work orders shows compliance", "Procedure updated and signed off", "All technicians trained and assessed", "PM compliance above 95% for 3 months", "Trigger tested and raises a work order"],
+  "dl-fb-Machine": ["Wear", "Fatigue", "Misalignment", "Imbalance", "Looseness", "Corrosion", "Seal failure", "Bearing failure", "Design limitation", "Component at end of life", "Overload"],
+  "dl-fb-Method": ["PM missing or not effective", "PM overdue", "Procedure not followed", "No procedure", "Incorrect procedure", "Poor work planning", "Change not managed", "Inadequate isolation", "Poor installation practice"],
+  "dl-fb-Material": ["Wrong part fitted", "Poor quality spare", "Contaminated lubricant", "Wrong lubricant", "Material defect", "Process material out of specification", "Spare not available"],
+  "dl-fb-Manpower": ["Skill or training gap", "Fatigue or workload", "Communication breakdown", "Supervision gap", "Decision under time pressure", "Human error", "Unclear roles"],
+  "dl-fb-Measurement": ["No condition monitoring", "Alarm not set or ignored", "Inspection missed defect", "Faulty instrument", "Data not trended", "Wrong limits or settings", "Poor failure data"],
+  "dl-fb-Environment": ["Dust", "Water ingress", "High temperature", "Vibration from nearby plant", "Corrosive atmosphere", "Weather or storm", "Load above design"]
+};
+const codingOf = p => [p.failureClass, p.problem, p.mechanism, p.cause, p.remedy].filter(Boolean).join(" › ");
 const CAPA_STATUS = ["Proposed", "Approved", "In progress", "Complete", "Verified effective"];
 const CAUSE_WORDS = /\b(because|due to|caused|cause|as a result of|owing to|root|blame)\b/i;
 const WO_FIELDS = [
@@ -282,9 +310,9 @@ function blankCase() {
     id: uid(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), example: false,
     meta: { title: "", customer: "", site: "", asset: "", assetDesc: "", location: "", eventDate: today, reportId: "RCA-" + today.replace(/-/g, "") + "-01", revision: "A", author: "", team: "", brand: "#3D72AD", logo: "", reportDate: today },
     impact: { consequence: "Production loss", safety: "None", env: "None", downtimeHrs: "", prodRate: "", labour: "", parts: "", other: "", currency: "$", notes: "" },
-    pcr: { failureClass: "", problem: "", cause: "", remedy: "", match: "", recommended: "" },
+    pcr: { failureClass: "", problem: "", mechanism: "", cause: "", remedy: "", match: "", recommended: "" },
     problem: { what: "", where: "", when: "", impact: "", statement: "" },
-    timeline: [], wos: [], woSource: null, fishbone: fb, whys: [], roots: [], capa: [],
+    timeline: [], wos: [], woSource: null, useFishbone: false, fishbone: fb, whys: [], roots: [], capa: [],
     summary: "", assumptions: "", hypotheses: "", dataNeeded: ""
   };
 }
@@ -293,10 +321,11 @@ function exampleCase() {
   c.example = true; c.id = "example-cv201";
   Object.assign(c.meta, { title: "CV-201 head drive gearbox bearing seizure", customer: "Example Customer Ltd", site: "Example Site, Crushing Plant 2", asset: "CV-201-GBX", assetDesc: "Overland conveyor CV-201 head drive gearbox (250 kW)", location: "CP2-CONV-CV201", eventDate: "2026-09-14", reportId: "RCA-20260914-01", revision: "A", author: "Reliability Engineer", team: "Reliability Engineer (lead), Maintenance Supervisor, Lubrication Technician, Production Shift Lead, Planner", reportDate: "2026-10-22" });
   Object.assign(c.impact, { consequence: "Production loss", safety: "None", env: "Minor oil spill, contained on drip tray", downtimeHrs: 39.75, prodRate: 4500, labour: 12800, parts: 38500, other: 2200, currency: "$", notes: "Production rate is the lost margin per hour of conveyor downtime, from the site's downtime cost register." });
-  Object.assign(c.pcr, { failureClass: "GEARBOX", problem: "BRGFAIL", cause: "WEAR", remedy: "REPLASM", match: "no", recommended: "LUBDEG (lubricant degraded / contaminated)" });
+  Object.assign(c.pcr, { failureClass: "Gearbox", problem: "Seized / stuck", mechanism: "Wear", cause: "Normal wear and tear", remedy: "Replace", match: "no", recommended: "Poor lubrication practice" });
+  c.useFishbone = true;
   Object.assign(c.problem, { what: "The output shaft bearing on the CV-201 head drive gearbox seized and tripped the conveyor", where: "Crushing Plant 2, overland conveyor CV-201 head drive", when: "14 September 2026 at 02:15, during night shift", impact: "39.75 hours of lost conveying and an estimated $232,375 in lost margin and repair cost" });
   c.timeline = [
-    { id: uid(), at: "2025-03-18T09:00", kind: "event", text: "Gearbox job plans consolidated; oil change task removed from JP-GBX-06 during the rewrite", source: "Maximo Job Plan revision history" },
+    { id: uid(), at: "2025-03-18T09:00", kind: "event", text: "Gearbox job plans consolidated; oil change task removed from JP-GBX-06 during the rewrite", source: "Job plan revision history" },
     { id: uid(), at: "2026-07-20T08:00", kind: "event", text: "Lube PM-4471 completed: oil top-up only, no oil sample taken", source: "WO 118842" },
     { id: uid(), at: "2026-09-10T14:30", kind: "initiating", text: "Operator reports grinding noise at CV-201 head drive", source: "Shift log" },
     { id: uid(), at: "2026-09-12T06:00", kind: "event", text: "Vibration route reads 7.8 mm/s RMS on output bearing (alarm 4.5). WO raised at priority 3", source: "CM route data, WO 120117" },
@@ -304,21 +333,21 @@ function exampleCase() {
     { id: uid(), at: "2026-09-14T03:00", kind: "response", text: "Maintenance attends; output bearing seized, oil dark with visible metal", source: "Callout report" },
     { id: uid(), at: "2026-09-15T18:00", kind: "restore", text: "Spare gearbox fitted and aligned; CV-201 returned to service", source: "WO 120140" }
   ];
-  const w = (wonum, date, finish, worktype, cost, problem, cause, desc) => ({ wonum, asset: "CV-201-GBX", location: "CP2-CONV-CV201", date, finish, worktype, cost, failurecode: worktype === "PM" ? "" : "GEARBOX", problem, cause, remedy: "", desc });
+  const w = (wonum, date, finish, worktype, cost, problem, cause, desc) => ({ wonum, asset: "CV-201-GBX", location: "CP2-CONV-CV201", date, finish, worktype, cost, failurecode: worktype === "PM" ? "" : "Gearbox", problem, cause, remedy: "", desc });
   c.wos = [
     w("108221", "2024-11-04", "2024-11-04", "PM", 640, "", "", "Gearbox lube PM"),
-    w("109876", "2025-01-21", "2025-01-22", "CM", 9800, "OILLEAK", "SEALFAIL", "Output seal leaking"),
+    w("109876", "2025-01-21", "2025-01-22", "CM", 9800, "External leakage", "Seal failure", "Output seal leaking"),
     w("111302", "2025-04-02", "2025-04-02", "PM", 610, "", "", "Gearbox lube PM"),
-    w("112950", "2025-06-16", "2025-06-18", "EM", 54200, "BRGFAIL", "WEAR", "Output bearing noisy, replaced bearing"),
+    w("112950", "2025-06-16", "2025-06-18", "EM", 54200, "Seized / stuck", "Normal wear and tear", "Output bearing noisy, replaced bearing"),
     w("114117", "2025-08-28", "2025-08-28", "PM", 620, "", "", "Gearbox lube PM"),
-    w("115604", "2025-11-10", "2025-11-11", "CM", 7400, "OVERHEAT", "LUBLOW", "High oil temperature, topped up"),
+    w("115604", "2025-11-10", "2025-11-11", "CM", 7400, "Overheating", "Poor lubrication practice", "High oil temperature, topped up"),
     w("116990", "2026-02-03", "2026-02-03", "PM", 655, "", "", "Gearbox lube PM"),
-    w("117735", "2026-04-22", "2026-04-23", "CM", 18900, "BRGFAIL", "WEAR", "Input bearing replaced, noisy"),
+    w("117735", "2026-04-22", "2026-04-23", "CM", 18900, "Seized / stuck", "Normal wear and tear", "Input bearing replaced, noisy"),
     w("118842", "2026-07-20", "2026-07-20", "PM", 640, "", "", "Gearbox lube PM, top-up only"),
-    w("120117", "2026-09-12", "2026-09-12", "CM", 0, "VIBHIGH", "", "High vibration on output bearing"),
-    w("120140", "2026-09-14", "2026-09-15", "EM", 51300, "BRGFAIL", "WEAR", "Gearbox seized, change out with spare")
+    w("120117", "2026-09-12", "2026-09-12", "CM", 0, "Abnormal vibration", "", "High vibration on output bearing"),
+    w("120140", "2026-09-14", "2026-09-15", "EM", 51300, "Seized / stuck", "Normal wear and tear", "Gearbox seized, change out with spare")
   ];
-  c.woSource = { file: "Example Maximo WO export (illustrative)", totalRows: 11, keptRows: 11, dateFrom: "2024-11-04", dateTo: "2026-09-14", dupes: 0, missing: "Cost blank on 0 rows", mapping: { wonum: "WONUM", asset: "ASSETNUM", date: "ACTSTART", finish: "ACTFINISH", worktype: "WORKTYPE", cost: "ACTTOTALCOST", failurecode: "FAILURECODE", problem: "PROBLEMCODE", cause: "CAUSECODE", desc: "DESCRIPTION" } };
+  c.woSource = { file: "Example work order export (illustrative)", totalRows: 11, keptRows: 11, dateFrom: "2024-11-04", dateTo: "2026-09-14", dupes: 0, missing: "Cost blank on 0 rows", mapping: { wonum: "Work Order", asset: "Asset", date: "Start Date", finish: "Finish Date", worktype: "Work Type", cost: "Total Cost", failurecode: "Failure Class", problem: "Problem", cause: "Cause", desc: "Description" } };
   const cz = (text, status, mech, infl) => ({ id: uid(), text, status: status || "candidate", mech: mech || "", infl: infl || "" });
   c.fishbone = {
     Machine: [cz("Output bearing fatigue and wear", "root", "Wear / fatigue"), cz("Seal leakage allowing water ingress", "candidate", "Leakage"), cz("Bearing undersized for duty", "ruled")],
@@ -332,7 +361,7 @@ function exampleCase() {
     id: uid(), title: "Physical path: why did the bearing seize?", steps: [
       { text: "The conveyor stopped because the gearbox output bearing seized and tripped the high-temperature protection.", evidence: "SCADA trip log; teardown photos" },
       { text: "The bearing seized because it ran in degraded oil with wear metal and water contamination.", evidence: "Drained oil analysis: water 0.4%, Fe 210 ppm, ISO 22/20/17" },
-      { text: "The oil was degraded because it had not been changed for 14 months against a 6-month OEM interval.", evidence: "Maximo PM history for PM-4471; OEM manual s.7.2" },
+      { text: "The oil was degraded because it had not been changed for 14 months against a 6-month OEM interval.", evidence: "PM history for PM-4471; OEM manual s.7.2" },
       { text: "The oil change was overdue because PM-4471 covers top-up only; the change task was dropped in the 2025 job plan rewrite.", evidence: "JP-GBX-06 revision history" },
       { text: "The gap was not caught because job plan changes are not reviewed against OEM requirements before release.", evidence: "Planning procedure MP-PLN-03 has no technical review step" }
     ]
@@ -348,12 +377,12 @@ function exampleCase() {
     { id: "r3", text: "Job plan changes are released without a technical review against OEM requirements, which let the oil change task drop out", type: "Latent / systemic", evidence: "JP-GBX-06 revision history; MP-PLN-03", confidence: "Medium" }
   ];
   c.capa = [
-    { id: uid(), action: "Restore the 6-monthly oil change task to JP-GBX-06 and add an oil sample to every lube PM", rootId: "r1", type: "Administrative", mobj: "Job Plan", owner: "Maintenance Planner", due: "2026-11-15", check: "Next 2 oil samples within ISO 18/16/13 and water below 0.05%", status: "Approved" },
-    { id: uid(), action: "Add a gearbox oil temperature meter with a 75 °C condition-monitoring trigger that generates a WO", rootId: "r1", type: "Monitor", mobj: "Meter", owner: "Reliability Engineer", due: "2026-12-15", check: "Meter readings flowing to Maximo daily; test trigger raises WO", status: "Proposed" },
-    { id: uid(), action: "Fit a desiccant breather and upgraded seal kit to the CV-201 gearbox to stop water ingress", rootId: "r1", type: "Engineer", mobj: "Other", owner: "Maintenance Supervisor", due: "2027-01-31", check: "Water content below 0.05% at 3 consecutive samples", status: "Proposed" },
-    { id: uid(), action: "Add a severity-to-priority table to the CM procedure (above alarm = P2, above trip = P1)", rootId: "r2", type: "Administrative", mobj: "Other", owner: "Reliability Engineer", due: "2026-11-30", check: "Audit of next 20 CM WOs shows correct priority", status: "Proposed" },
-    { id: uid(), action: "Add a technical review step for job plan changes and audit all gearbox job plans against OEM manuals", rootId: "r3", type: "Administrative", mobj: "Reliability Strategy", owner: "Maintenance Manager", due: "2027-02-28", check: "100% of gearbox job plans reviewed; no OEM tasks missing", status: "Proposed" },
-    { id: uid(), action: "Recode WO 120140 cause from WEAR to LUBDEG and add LUBDEG to the GEARBOX failure class", rootId: "r3", type: "Administrative", mobj: "Failure Code", owner: "Maintenance Planner", due: "2026-10-31", check: "Failure report on WO 120140 updated; code in use", status: "In progress" }
+    { id: uid(), action: "Restore the 6-monthly oil change task to JP-GBX-06 and add an oil sample to every lube PM", rootId: "r1", type: "Administrative", mobj: "Job plan / task list", owner: "Maintenance Planner", due: "2026-11-15", check: "Next 2 oil samples within ISO 18/16/13 and water below 0.05%", status: "Approved" },
+    { id: uid(), action: "Add a gearbox oil temperature meter with a 75 °C condition-monitoring trigger that generates a WO", rootId: "r1", type: "Monitor", mobj: "Condition monitoring trigger", owner: "Reliability Engineer", due: "2026-12-15", check: "Temperature readings reach the maintenance system daily; test trigger raises a WO", status: "Proposed" },
+    { id: uid(), action: "Fit a desiccant breather and upgraded seal kit to the CV-201 gearbox to stop water ingress", rootId: "r1", type: "Engineer", mobj: "Design change / modification", owner: "Maintenance Supervisor", due: "2027-01-31", check: "Water content below 0.05% at 3 consecutive samples", status: "Proposed" },
+    { id: uid(), action: "Add a severity-to-priority table to the CM procedure (above alarm = P2, above trip = P1)", rootId: "r2", type: "Administrative", mobj: "Procedure / standard", owner: "Reliability Engineer", due: "2026-11-30", check: "Audit of next 20 CM WOs shows correct priority", status: "Proposed" },
+    { id: uid(), action: "Add a technical review step for job plan changes and audit all gearbox job plans against OEM manuals", rootId: "r3", type: "Administrative", mobj: "Maintenance strategy", owner: "Maintenance Manager", due: "2027-02-28", check: "100% of gearbox job plans reviewed; no OEM tasks missing", status: "Proposed" },
+    { id: uid(), action: "Recode WO 120140 cause from Normal wear and tear to Poor lubrication practice and brief planners on cause coding", rootId: "r3", type: "Administrative", mobj: "Failure code update", owner: "Maintenance Planner", due: "2026-10-31", check: "WO 120140 recoded; audit of next 10 failure WOs shows correct cause codes", status: "In progress" }
   ];
   c.assumptions = "Production rate of $4,500/h taken from the site downtime cost register. Labour cost uses the site blended rate. The spare gearbox overhaul cost is included in parts.";
   c.dataNeeded = "Bearing metallurgy report from the OEM to confirm fatigue versus lubrication-starvation mode. Oil temperature trend if it can be recovered from the PLC historian.";
@@ -411,7 +440,7 @@ function stepCount(c, id) {
     case "problem": return !!statementOf(c);
     case "timeline": return c.timeline.length;
     case "history": return c.wos.length;
-    case "fishbone": return CATS.reduce((a, k) => a + c.fishbone[k.k].length, 0);
+    case "fishbone": return c.useFishbone ? CATS.reduce((a, k) => a + c.fishbone[k.k].length, 0) : 0;
     case "whys": return c.whys.reduce((a, w) => a + w.steps.filter(s => s.text).length, 0);
     case "roots": return c.roots.length;
     case "capa": return c.capa.length;
@@ -463,6 +492,9 @@ function normalise(c) {
   if (String(out.meta.brand).toUpperCase() === "#1F3A5F") out.meta.brand = "#3D72AD";
   CATS.forEach(k => { if (!out.fishbone[k.k]) out.fishbone[k.k] = []; });
   ["timeline", "wos", "whys", "roots", "capa"].forEach(k => { if (!Array.isArray(out[k])) out[k] = []; });
+  out.capa.forEach(a => { if (CARRIED_OLD[a.mobj]) a.mobj = CARRIED_OLD[a.mobj]; });
+  // cases saved before the fishbone became optional: keep it on if it has content
+  if (c.useFishbone === undefined) out.useFishbone = CATS.some(k => (out.fishbone[k.k] || []).length);
   return out;
 }
 async function deleteCase() {
@@ -492,7 +524,7 @@ function renderNav() {
     const done = !!cnt;
     const ct = typeof cnt === "number" && cnt > 0 ? cnt : "";
     return (s.id === "report" ? '<div class="sep"></div>' : "") +
-      `<button class="${done ? "done" : ""}" data-act="go" data-step="${s.id}" ${S.step === s.id ? 'aria-current="step"' : ""}><span class="n">${done && s.id !== "report" ? "✓" : s.n}</span><span class="lbl">${s.label}</span><span class="ct">${ct}</span></button>`;
+      `<button class="${done ? "done" : ""}" data-act="go" data-step="${s.id}" ${S.step === s.id ? 'aria-current="step"' : ""}><span class="n">${done && s.id !== "report" ? "✓" : s.n}</span><span class="lbl">${s.label}${s.id === "fishbone" && c && !c.useFishbone ? ' <span class="opt">optional</span>' : ""}</span><span class="ct">${ct}</span></button>`;
   }).join("");
 }
 function render() {
@@ -520,7 +552,7 @@ const fld = (k, label, val, opts = {}) => {
   const id = "f_" + k.replace(/\./g, "_");
   if (type === "textarea") return `<label${cls} for="${id}"><span>${label}${code}</span><textarea id="${id}" data-k="${k}" rows="${opts.rows || 3}" placeholder="${esc(opts.ph || "")}">${esc(val)}</textarea></label>`;
   if (type === "select") return `<label${cls} for="${id}"><span>${label}${code}</span><select id="${id}" data-k="${k}" ${opts.rr ? 'data-rr="1"' : ""}>${opts.options.map(o => { const v = typeof o === "string" ? o : o[0]; const l = typeof o === "string" ? o : o[1]; return `<option value="${esc(v)}" ${String(val) === String(v) ? "selected" : ""}>${esc(l)}</option>`; }).join("")}</select></label>`;
-  return `<label${cls} for="${id}"><span>${label}${code}</span><input id="${id}" type="${type}" data-k="${k}" value="${esc(val)}" placeholder="${esc(opts.ph || "")}" ${type === "number" ? 'step="any" inputmode="decimal"' : ""} ${opts.num ? 'data-num="1"' : ""}></label>`;
+  return `<label${cls} for="${id}"><span>${label}${code}</span><input id="${id}" type="${type}" data-k="${k}" value="${esc(val)}" placeholder="${esc(opts.ph || (opts.list ? "Choose or type" : ""))}" ${opts.list ? `list="${opts.list}" autocomplete="off"` : ""} ${type === "number" ? 'step="any" inputmode="decimal"' : ""} ${opts.num ? 'data-num="1"' : ""}></label>`;
 };
 
 /* ---------- step renderers ---------- */
@@ -531,9 +563,9 @@ event(c) {
   <h3 class="sub">Event</h3>
   <div class="grid">
     ${fld("meta.title", "Event title", m.title, { wide: true, ph: "e.g. CV-201 head drive gearbox bearing seizure" })}
-    ${fld("meta.asset", "Asset ID", m.asset, { code: "ASSETNUM", ph: "CV-201-GBX" })}
+    ${fld("meta.asset", "Asset ID", m.asset, { ph: "e.g. CV-201-GBX" })}
     ${fld("meta.assetDesc", "Asset description", m.assetDesc)}
-    ${fld("meta.location", "Location", m.location, { code: "LOCATION" })}
+    ${fld("meta.location", "Location", m.location, { ph: "Functional location or area" })}
     ${fld("meta.eventDate", "Event date", m.eventDate, { type: "date" })}
     ${fld("impact.consequence", "Main consequence", i.consequence, { type: "select", options: ["Production loss", "Safety", "Environment", "Quality", "Cost only", "Multiple"] })}
     ${fld("impact.safety", "Safety impact", i.safety)}
@@ -552,13 +584,14 @@ event(c) {
   <div id="live-cost" style="margin-top:12px">${costTiles(c)}</div>
   </div>
   <div class="card">
-  <h3 class="sub">Maximo failure coding (as recorded)</h3>
-  <p class="note" style="margin:-4px 0 12px;max-width:72ch">Failure class › problem › cause › remedy, as coded on the work order's failure report. In Reliability Strategies terms, the problem is close to the failure mechanism and the cause is close to the failure influence. You will check this against the verified root cause in step 7.</p>
+  <h3 class="sub">Failure coding (as recorded)</h3>
+  <p class="note" style="margin:-4px 0 12px;max-width:72ch">How the failure was coded on the work order in your maintenance system. Choose from the standard lists (ISO 14224 terms) or type your own codes. You will check the recorded cause against the verified root cause in step 7.</p>
   <div class="grid">
-    ${fld("pcr.failureClass", "Failure class", p.failureClass, { code: "FAILURECODE" })}
-    ${fld("pcr.problem", "Problem", p.problem, { code: "PROBLEM" })}
-    ${fld("pcr.cause", "Cause", p.cause, { code: "CAUSE" })}
-    ${fld("pcr.remedy", "Remedy", p.remedy, { code: "REMEDY" })}
+    ${fld("pcr.failureClass", "Equipment class", p.failureClass, { list: "dl-class" })}
+    ${fld("pcr.problem", "Failure mode (problem)", p.problem, { list: "dl-mode" })}
+    ${fld("pcr.mechanism", "Failure mechanism", p.mechanism, { list: "dl-mech" })}
+    ${fld("pcr.cause", "Cause", p.cause, { list: "dl-cause" })}
+    ${fld("pcr.remedy", "Remedy (action taken)", p.remedy, { list: "dl-remedy" })}
   </div>
   </div>
   <div class="card">
@@ -597,7 +630,7 @@ timeline(c) {
   <div class="list">${tl.length ? tl.map(t => `<div class="item tl">
     <input type="datetime-local" aria-label="Date and time" data-k="timeline.${t.i}.at" value="${esc(t.at)}">
     <select aria-label="Event type" data-k="timeline.${t.i}.kind" data-rr="1">${Object.entries(TL_KINDS).map(([k, v]) => `<option value="${k}" ${t.kind === k ? "selected" : ""}>${v}</option>`).join("")}</select>
-    <div style="display:grid;gap:6px;min-width:0"><input type="text" aria-label="What happened" placeholder="What happened" data-k="timeline.${t.i}.text" value="${esc(t.text)}"><input type="text" aria-label="Source" placeholder="Evidence source (log, WO, interview)" data-k="timeline.${t.i}.source" value="${esc(t.source)}" style="font-size:12px"></div>
+    <div style="display:grid;gap:6px;min-width:0"><input type="text" aria-label="What happened" placeholder="What happened" data-k="timeline.${t.i}.text" value="${esc(t.text)}"><input type="text" aria-label="Source" placeholder="Evidence source (choose or type)" list="dl-source" autocomplete="off" data-k="timeline.${t.i}.source" value="${esc(t.source)}" style="font-size:12px"></div>
     <button class="btn ghost sm" data-act="del" data-list="timeline" data-i="${t.i}" aria-label="Remove event">✕</button></div>`).join("") : `<p class="note">No events yet. Add the first one, starting from the earliest relevant event (for example the last PM or a change).</p>`}</div>
   ${c.timeline.length ? `<h3 class="sub">Timeline graphic</h3><div class="svg-box">${timelineSVG(c)}</div>` : ""}
   <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="history">Next: failure history</button></div></div>`;
@@ -605,17 +638,17 @@ timeline(c) {
 history(c) {
   const h = historyOf(c), src = c.woSource;
   const imp = S.pendingImport;
-  return `<div class="card">${head("Step 4 · Evidence", "Failure history", "Load a work order export from Maximo, SAP PM, Pronto or any CMMS (CSV or Excel). Columns are mapped to a standard model; Maximo field names are recognised automatically.", c.wos.length ? `<button class="btn ghost" data-act="clear-wos">Clear history</button>` : "")}
-  ${imp ? importMapper(c, imp) : `<div class="dropzone" id="drop"><div style="font-weight:600;color:var(--fg)">Drop a CSV or XLSX work order export here</div><div class="note" style="margin:4px 0 10px">Recognised: WONUM, ASSETNUM, LOCATION, WORKTYPE, ACTSTART, ACTFINISH, ACTTOTALCOST, FAILURECODE, PROBLEMCODE, CAUSECODE, REMEDYCODE, DESCRIPTION, and SAP / Pronto equivalents</div><button class="btn teal" data-act="pick-wo">Choose file</button></div>`}
+  return `<div class="card">${head("Step 4 · Evidence", "Failure history", "Load a work order export from your maintenance system (CSV or Excel). Columns are mapped to a standard model, and common column names are recognised automatically.", c.wos.length ? `<button class="btn ghost" data-act="clear-wos">Clear history</button>` : "")}
+  ${imp ? importMapper(c, imp) : `<div class="dropzone" id="drop"><div style="font-weight:600;color:var(--fg)">Drop a CSV or XLSX work order export here</div><div class="note" style="margin:4px 0 10px">Works with exports from most maintenance systems. Columns such as Work Order, Asset, Start Date, Work Type, Cost, Failure Class, Problem, Cause and Description are recognised automatically.</div><button class="btn teal" data-act="pick-wo">Choose file</button></div>`}
   ${c.wos.length ? `
   <h3 class="sub">${esc(historyTitle(c, h))}</h3>
   <div class="tiles">
     <div class="tile"><div class="k">Corrective WOs</div><div class="v">${h.fails.length}</div></div>
-    <div class="tile"><div class="k">Same mode (${esc(c.pcr.problem || "set problem code")})</div><div class="v ${h.repeat ? "red" : ""}">${h.same.length}</div></div>
+    <div class="tile"><div class="k">Same failure mode (${esc(c.pcr.problem || "set in step 1")})</div><div class="v ${h.repeat ? "red" : ""}">${h.same.length}</div></div>
     <div class="tile"><div class="k">Mean time between failures</div><div class="v">${h.mtbf ? fmtN(h.mtbf) + " d" : "–"}</div></div>
     <div class="tile"><div class="k">Corrective cost in period</div><div class="v">${fmtMoney(h.cost, c.impact.currency)}</div></div>
   </div>
-  <p class="note">${h.repeat ? `<span class="pill red">Repeat failure</span> ${h.priorSame.length} earlier ${esc(c.pcr.problem)} failure${h.priorSame.length > 1 ? "s" : ""} on this asset before the event.` : c.pcr.problem ? `<span class="pill green">Not a repeat</span> No earlier ${esc(c.pcr.problem)} failures found.` : "Set the problem code in step 1 to check for repeat failures."} PM and inspection work types are excluded from failure counts.</p>
+  <p class="note">${h.repeat ? `<span class="pill red">Repeat failure</span> ${h.priorSame.length} earlier ${esc(c.pcr.problem)} failure${h.priorSame.length > 1 ? "s" : ""} on this asset before the event.` : c.pcr.problem ? `<span class="pill green">Not a repeat</span> No earlier ${esc(c.pcr.problem)} failures found.` : "Set the failure mode in step 1 to check for repeat failures."} PM and inspection work types are excluded from failure counts.</p>
   <div class="svg-box" style="margin-top:10px">${historySVG(c, h)}</div>
   <h3 class="sub">Work orders for ${esc(c.meta.asset || "all assets")} (${h.rows.length})</h3>
   <div class="tbl-wrap"><table class="t"><thead><tr><th>WO</th><th>Date</th><th>Type</th><th>Class</th><th>Problem</th><th>Cause</th><th class="num">Cost</th><th>Description</th></tr></thead><tbody>
@@ -625,12 +658,14 @@ history(c) {
   <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="fishbone">Next: fishbone</button></div></div>`;
 },
 fishbone(c) {
+  if (!c.useFishbone) return `<div class="card">${head("Step 5 · Analyse (optional)", "Fishbone (6M)", "A fishbone helps when the cause is unclear or several factors may be involved. For a simple failure you can go straight to the 5 Whys. When it is off, the fishbone is left out of the report.")}
+    <div class="row"><button class="btn teal" data-act="fish-on">Use a fishbone for this case</button><button class="btn pri" data-act="go" data-step="whys">Skip to 5 Whys</button></div></div>`;
   const ai = S.ai.fish;
-  return `<div class="card">${head("Step 5 · Analyse", "Fishbone (6M)", "List every credible candidate cause under the six categories. Mark each as a candidate, ruled out (with evidence) or a root cause. Use the asset's Reliability Strategies failure mechanisms and influences as a checklist.", S.sample ? `<button class="btn" data-act="ai-fish" ${ai === "busy" ? "disabled" : ""}>${ai === "busy" ? "Thinking…" : "Suggest causes with Claude"}</button>` : "")}
+  return `<div class="card">${head("Step 5 · Analyse (optional)", "Fishbone (6M)", "List every credible candidate cause under the six categories. Mark each as a candidate, ruled out (with evidence) or a root cause. Each category has a dropdown of common causes, or type your own.", `<button class="btn ghost" data-act="fish-off">Don't use a fishbone</button>` + (S.sample ? `<button class="btn" data-act="ai-fish" ${ai === "busy" ? "disabled" : ""}>${ai === "busy" ? "Thinking…" : "Suggest causes with Claude"}</button>` : ""))}
   ${ai && ai !== "busy" ? `<div class="ai-box" style="margin-bottom:12px">${esc(ai)}</div>` : ""}
   <div class="fish-cols">${CATS.map(cat => `<div class="bone"><h4>${cat.k === "Environment" ? "Environment" : cat.k}<button class="btn sm" data-act="add-cause" data-cat="${cat.k}">Add</button></h4><div class="hint">${cat.hint}</div>
     ${c.fishbone[cat.k].map((z, i) => `<div class="cause ${z.status}">
-      <input type="text" aria-label="Cause" data-k="fishbone.${cat.k}.${i}.text" value="${esc(z.text)}" placeholder="Candidate cause">
+      <input type="text" aria-label="Cause" data-k="fishbone.${cat.k}.${i}.text" value="${esc(z.text)}" placeholder="Choose or type a cause" list="dl-fb-${cat.k}" autocomplete="off">
       <select aria-label="Status" data-k="fishbone.${cat.k}.${i}.status" data-rr="1"><option value="candidate" ${z.status === "candidate" ? "selected" : ""}>Candidate</option><option value="root" ${z.status === "root" ? "selected" : ""}>Root cause</option><option value="ruled" ${z.status === "ruled" ? "selected" : ""}>Ruled out</option></select>
       <button class="btn ghost sm" data-act="del-cause" data-cat="${cat.k}" data-i="${i}" aria-label="Remove cause">✕</button>
       ${z.suggested ? `<div class="tag">Suggested by Claude. Verify against evidence before keeping.</div>` : ""}
@@ -640,7 +675,7 @@ fishbone(c) {
   <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="whys">Next: 5 Whys</button></div></div>`;
 },
 whys(c) {
-  const roots = []; CATS.forEach(k => c.fishbone[k.k].forEach(z => { if (z.status === "root" || z.status === "candidate") roots.push(z.text); }));
+  const roots = []; if (c.useFishbone) CATS.forEach(k => c.fishbone[k.k].forEach(z => { if (z.status === "root" || z.status === "candidate") roots.push(z.text); }));
   return `<div class="card">${head("Step 6 · Analyse", "5 Whys", "Ask why on the strongest candidate paths. Start a second chain when one answer has two credible branches. Stop when you reach a cause the organisation controls: a system, procedure, design or management cause.", `<button class="btn teal" data-act="add-chain">New chain</button>`)}
   ${c.whys.length ? c.whys.map((w, wi) => `<div class="why-chain">
     <div class="row" style="justify-content:space-between"><input type="text" aria-label="Chain title" data-k="whys.${wi}.title" value="${esc(w.title)}" style="font-weight:600;max-width:520px;background:var(--surface)"><div class="row"><button class="btn sm" data-act="promote" data-i="${wi}">Add final why as root cause</button><button class="btn ghost sm" data-act="del" data-list="whys" data-i="${wi}">Remove chain</button></div></div>
@@ -654,18 +689,18 @@ whys(c) {
 },
 roots(c) {
   const p = c.pcr;
-  return `<div class="card">${head("Step 7 · Verify", "Root causes", "Classify each root cause and test it against the evidence. Causes without supporting evidence, or rated Low, are listed in the report as hypotheses still to verify.", `<button class="btn" data-act="roots-from-fish">Pull in fishbone roots</button><button class="btn teal" data-act="add-root">Add root cause</button>`)}
+  return `<div class="card">${head("Step 7 · Verify", "Root causes", "Classify each root cause and test it against the evidence. Causes without supporting evidence, or rated Low, are listed in the report as hypotheses still to verify.", (c.useFishbone ? `<button class="btn" data-act="roots-from-fish">Pull in fishbone roots</button>` : "") + `<button class="btn teal" data-act="add-root">Add root cause</button>`)}
   <div class="list">${c.roots.length ? c.roots.map((r, i) => `<div class="item root"><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">
     ${fld(`roots.${i}.text`, "Root cause", r.text, { wide: true, type: "textarea", rows: 2 })}
     ${fld(`roots.${i}.type`, "Type", r.type, { type: "select", options: ROOT_TYPES })}
     ${fld(`roots.${i}.confidence`, "Confidence", r.confidence, { type: "select", options: ["High", "Medium", "Low"] })}
     <label class="f" for="f_roots_${i}_evidence" style="grid-column: span 2"><span>Supporting evidence</span><input id="f_roots_${i}_evidence" type="text" data-k="roots.${i}.evidence" value="${esc(r.evidence)}" placeholder="Cite the evidence; leave blank if none yet"></label>
     </div><button class="btn ghost sm" data-act="del" data-list="roots" data-i="${i}" aria-label="Remove root cause">✕</button></div>`).join("") : `<p class="note">No root causes yet. Pull them in from the fishbone, promote a final why, or add one.</p>`}</div>
-  <h3 class="sub">Coding check against Maximo</h3>
-  <p class="note" style="margin:-4px 0 10px;max-width:72ch">Coded on the WO: <span class="mono">${esc([p.failureClass, p.problem, p.cause, p.remedy].filter(Boolean).join(" › ") || "not recorded")}</span>. Does the coded cause match the verified physical root cause?</p>
+  <h3 class="sub">Coding check</h3>
+  <p class="note" style="margin:-4px 0 10px;max-width:72ch">Recorded coding: <span class="mono">${esc(codingOf(p) || "not recorded")}</span>. Does the recorded cause match the verified physical root cause?</p>
   <div class="grid">
-    ${fld("pcr.match", "Coded cause matches root cause", p.match, { type: "select", options: [["", "Not assessed"], ["yes", "Yes"], ["no", "No, recode"]], rr: true })}
-    ${p.match === "no" ? fld("pcr.recommended", "Recommended cause code", p.recommended, { ph: "e.g. LUBDEG" }) : ""}
+    ${fld("pcr.match", "Recorded cause matches root cause", p.match, { type: "select", options: [["", "Not assessed"], ["yes", "Yes"], ["no", "No, recode"]], rr: true })}
+    ${p.match === "no" ? fld("pcr.recommended", "Recommended cause code", p.recommended, { list: "dl-cause" }) : ""}
   </div>
   <h3 class="sub">Open items</h3>
   <div class="grid">
@@ -676,17 +711,17 @@ roots(c) {
 },
 capa(c) {
   const rootOpts = [["", "Select root cause"], ...c.roots.map((r, i) => [r.id, "RC" + (i + 1) + " · " + trunc(r.text, 60)])];
-  return `<div class="card">${head("Step 8 · Act", "Corrective and preventive actions", "Each action addresses a root cause, sits in the hierarchy (Eliminate › Engineer › Administrative › Monitor), and names the Maximo object that will carry it so it can be executed.", `<button class="btn teal" data-act="add-capa">Add action</button>`)}
+  return `<div class="card">${head("Step 8 · Act", "Corrective and preventive actions", "Each action addresses a root cause, sits in the hierarchy (Eliminate › Engineer › Administrative › Monitor), and says how it will be carried out (PM, task list, monitoring trigger, procedure and so on) so it can be put into practice.", `<button class="btn teal" data-act="add-capa">Add action</button>`)}
   ${!c.roots.length ? `<p class="warn">Add root causes in step 7 first so every action can be linked to one.</p>` : ""}
   <div class="list">${c.capa.map((a, i) => `<div class="item capa"><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
     ${fld(`capa.${i}.action`, "Action " + (i + 1), a.action, { wide: true, type: "textarea", rows: 2 })}
     ${fld(`capa.${i}.rootId`, "Root cause addressed", a.rootId, { type: "select", options: rootOpts })}
     ${fld(`capa.${i}.type`, "Type", a.type, { type: "select", options: CAPA_TYPES })}
-    ${fld(`capa.${i}.mobj`, "Maximo object", a.mobj, { type: "select", options: MAXIMO_OBJ })}
-    ${fld(`capa.${i}.owner`, "Owner (role)", a.owner)}
+    ${fld(`capa.${i}.mobj`, "Carried out through", a.mobj, { type: "select", options: CARRIED })}
+    ${fld(`capa.${i}.owner`, "Owner (role)", a.owner, { list: "dl-owner" })}
     ${fld(`capa.${i}.due`, "Due", a.due, { type: "date" })}
     ${fld(`capa.${i}.status`, "Status", a.status, { type: "select", options: CAPA_STATUS })}
-    ${fld(`capa.${i}.check`, "Effectiveness check (the measurable sign it worked)", a.check, { wide: true })}
+    ${fld(`capa.${i}.check`, "Effectiveness check (the measurable sign it worked)", a.check, { wide: true, list: "dl-check" })}
     </div><button class="btn ghost sm" data-act="del" data-list="capa" data-i="${i}" aria-label="Remove action">✕</button></div>`).join("") || `<p class="note">No actions yet.</p>`}</div>
   ${c.roots.length && c.capa.length ? (() => { const un = c.roots.filter(r => !c.capa.some(a => a.rootId === r.id)); return un.length ? `<p class="warn" style="margin-top:10px">${un.length} root cause${un.length > 1 ? "s have" : " has"} no action yet: ${un.map(r => esc(trunc(r.text, 50))).join("; ")}</p>` : `<p class="note" style="margin-top:10px"><span class="pill green">Covered</span> Every root cause has at least one action.</p>`; })() : ""}
   <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn pri" data-act="go" data-step="report">Next: report</button></div></div>`;
@@ -731,7 +766,7 @@ function autoSummary(c) {
     const byType = ROOT_TYPES.map(t => [t, c.roots.filter(r => r.type === t).length]).filter(x => x[1]);
     s.push(`The analysis identified ${c.roots.length} root cause${c.roots.length > 1 ? "s" : ""} (${byType.map(x => x[1] + " " + x[0].toLowerCase()).join(", ")}): ${c.roots.map(r => r.text.replace(/\.$/, "").replace(/^./, ch => ch.toLowerCase())).slice(0, 3).join("; ")}.`);
   }
-  if (c.capa.length) s.push(`${c.capa.length} corrective and preventive action${c.capa.length > 1 ? "s are" : " is"} proposed, each linked to a root cause and set up to be carried in Maximo.`);
+  if (c.capa.length) s.push(`${c.capa.length} corrective and preventive action${c.capa.length > 1 ? "s are" : " is"} proposed, each linked to a root cause with an owner, due date and effectiveness check.`);
   return s.join(" ");
 }
 
@@ -866,24 +901,25 @@ function buildReport(c) {
   const rcLabel = id => { const i = c.roots.findIndex(r => r.id === id); return i < 0 ? "–" : "RC" + (i + 1); };
   const hypo = [
     ...c.roots.filter(r => !r.evidence || r.confidence === "Low").map(r => r.text + " (" + (r.evidence ? "low confidence" : "no supporting evidence yet") + ")"),
-    ...CATS.flatMap(cat => c.fishbone[cat.k].filter(z => z.status === "candidate" && z.text).map(z => z.text + " (" + cat.k + ", candidate not yet tested)"))
+    ...(c.useFishbone ? CATS : []).flatMap(cat => c.fishbone[cat.k].filter(z => z.status === "candidate" && z.text).map(z => z.text + " (" + cat.k + ", candidate not yet tested)"))
   ];
   const verified = c.roots.filter(r => r.evidence && r.confidence !== "Low");
   const tl = [...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at)));
   const p = c.pcr;
+  let secNo = 0; const nx = () => String(++secNo);
   const sec = (no, title, lead, body, brk) => `<section class="${brk ? "brk" : ""}"><h2><span class="no">${no}</span>${title}</h2>${lead ? `<p class="lead">${lead}</p>` : ""}${body}</section>`;
   let html = `<div class="rpt"><div class="pg">
   <div class="cover"><div><div class="k">Root Cause Analysis</div><h1>${esc(m.title || "Untitled event")}</h1>
     <dl><div><dt>Customer</dt><dd>${esc(m.customer || "–")}</dd></div><div><dt>Site</dt><dd>${esc(m.site || "–")}</dd></div><div><dt>Asset</dt><dd>${esc(m.asset || "–")}${m.assetDesc ? "<br><span style=\"font-weight:400;opacity:.85\">" + esc(m.assetDesc) + "</span>" : ""}</dd></div><div><dt>Event date</dt><dd>${fmtDate(m.eventDate) || "–"}</dd></div>
     <div><dt>Report ID</dt><dd>${esc(m.reportId)} rev ${esc(m.revision)}</dd></div><div><dt>Author</dt><dd>${esc(m.author || "–")}</dd></div><div><dt>Report date</dt><dd>${fmtDate(m.reportDate)}</dd></div></dl></div>
     ${m.logo ? `<div class="logo"><img src="${m.logo}" alt="${esc(m.customer)} logo"></div>` : ""}</div>`;
-  html += sec("1", "Executive summary", "", `<p>${esc(summary)}</p>
+  html += sec(nx(), "Executive summary", "", `<p>${esc(summary)}</p>
     <div class="tiles"><div class="tile amber"><div class="k">Downtime</div><div class="v">${fmtN(num(c.impact.downtimeHrs), 1)} h</div></div>
     <div class="tile red"><div class="k">Cost of failure</div><div class="v">${fmtMoney(k.total, cur)}</div></div>
     <div class="tile ${h.repeat ? "red" : ""}"><div class="k">Repeat failures in period</div><div class="v">${h.priorSame.length}</div></div>
     <div class="tile"><div class="k">Root causes</div><div class="v">${c.roots.length}</div></div>
     <div class="tile"><div class="k">Actions</div><div class="v">${c.capa.length}</div></div></div>`);
-  html += sec("2", "Problem statement and impact", "", `${st ? `<div class="stmt">${esc(st)}</div>` : ""}
+  html += sec(nx(), "Problem statement and impact", "", `${st ? `<div class="stmt">${esc(st)}</div>` : ""}
     <div class="two"><table class="kv"><tbody>
       <tr><td>Main consequence</td><td>${esc(c.impact.consequence)}</td></tr><tr><td>Safety</td><td>${esc(c.impact.safety || "–")}</td></tr><tr><td>Environment</td><td>${esc(c.impact.env || "–")}</td></tr>
       <tr><td>Location</td><td>${esc(m.location || "–")}</td></tr><tr><td>RCA team</td><td>${esc(m.team || "–")}</td></tr></tbody></table>
@@ -892,16 +928,16 @@ function buildReport(c) {
       <tr><td>Lost production (${fmtN(num(c.impact.downtimeHrs), 2)} h × ${fmtMoney(num(c.impact.prodRate), cur)}/h)</td><td class="num">${fmtMoney(k.downtime, cur)}</td></tr>
       <tr><td>Repair labour</td><td class="num">${fmtMoney(k.labour, cur)}</td></tr><tr><td>Parts and materials</td><td class="num">${fmtMoney(k.parts, cur)}</td></tr><tr><td>Other</td><td class="num">${fmtMoney(k.other, cur)}</td></tr>
       <tr><td><b>Cost of failure</b></td><td class="num"><b>${fmtMoney(k.total, cur)}</b></td></tr></tbody></table></div>
-    <div class="callout ${p.match === "yes" ? "ok" : ""}"><b>Maximo failure coding.</b> Recorded as <span class="mono">${esc([p.failureClass, p.problem, p.cause, p.remedy].filter(Boolean).join(" › ") || "not recorded")}</span> (failure class › problem › cause › remedy).
-      ${p.match === "no" ? ` The coded cause does not match the verified root cause. Recommended cause code: <b>${esc(p.recommended || "to be agreed")}</b>. This is a coding-quality finding.` : p.match === "yes" ? " The coded cause matches the verified root cause." : " Coding not yet checked against the root cause."}</div>`);
-  html += sec("3", "Sequence of events", tl.length + " events from the evidence, in order. Markers are evenly spaced in sequence, not to time scale.", tl.length ? `<div class="fig">${timelineSVG(c, brand)}</div>
+    <div class="callout ${p.match === "yes" ? "ok" : ""}"><b>Failure coding.</b> Recorded as <span class="mono">${esc(codingOf(p) || "not recorded")}</span> (equipment class › failure mode › mechanism › cause › remedy).
+      ${p.match === "no" ? ` The recorded cause does not match the verified root cause. Recommended cause code: <b>${esc(p.recommended || "to be agreed")}</b>. This is a coding-quality finding.` : p.match === "yes" ? " The recorded cause matches the verified root cause." : " Coding not yet checked against the root cause."}</div>`);
+  html += sec(nx(), "Sequence of events", tl.length + " events from the evidence, in order. Markers are evenly spaced in sequence, not to time scale.", tl.length ? `<div class="fig">${timelineSVG(c, brand)}</div>
     <div class="tw"><table><thead><tr><th>Date and time</th><th>Type</th><th>Event</th><th>Source</th></tr></thead><tbody>${tl.map(t => `<tr><td style="white-space:nowrap">${fmtDT(t.at)}</td><td>${t.kind === "failure" ? '<span class="pill red">Point of failure</span>' : t.kind === "initiating" ? '<span class="pill amber">Initiating event</span>' : esc(TL_KINDS[t.kind] || "")}</td><td>${esc(t.text)}</td><td>${esc(t.source)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No events recorded.</p>", true);
-  html += sec("4", "Failure history", h.fails.length ? `${h.fails.length} corrective work orders on ${esc(m.asset)}; MTBF ${h.mtbf ? fmtN(h.mtbf) + " days" : "not calculable"}; corrective cost in period ${fmtMoney(h.cost, cur)}.` : "", h.months.length ? `<div class="fig">${historySVG(c, h, brand)}</div>
+  html += sec(nx(), "Failure history", h.fails.length ? `${h.fails.length} corrective work orders on ${esc(m.asset)}; MTBF ${h.mtbf ? fmtN(h.mtbf) + " days" : "not calculable"}; corrective cost in period ${fmtMoney(h.cost, cur)}.` : "", h.months.length ? `<div class="fig">${historySVG(c, h, brand)}</div>
     ${h.same.length ? `<div class="tw"><table><thead><tr><th>WO</th><th>Date</th><th>Type</th><th>Problem</th><th>Cause</th><th class="num">Cost</th><th>Description</th></tr></thead><tbody>${h.same.map(r => `<tr><td class="mono">${esc(r.wonum)}</td><td style="white-space:nowrap">${fmtDate(isoDay(r.d))}</td><td>${esc(r.worktype)}</td><td>${esc(r.problem)}</td><td>${esc(r.cause)}</td><td class="num">${fmtN(num(r.cost))}</td><td>${esc(r.desc)}</td></tr>`).join("")}</tbody></table></div><p class="lead" style="margin-top:6px">Work orders with the same problem code (${esc(p.problem)}).</p>` : ""}` : "<p>No work order history was loaded for this asset.</p>");
-  html += sec("5", "Cause analysis: fishbone (6M)", "Candidate causes by category. Root causes are highlighted; ruled-out causes are struck through.", `<div class="fig">${fishboneSVG(c, brand)}</div>`, true);
-  html += sec("6", "Cause analysis: 5 Whys", "", c.whys.length ? c.whys.map(w => `<div class="chain"><h3>${esc(w.title)}</h3>${w.steps.filter(s => s.text).map((s, i, a) => `<div class="wcard ${i === a.length - 1 ? "root" : ""}"><div class="q">Why ${i + 1}</div><div>${esc(s.text)}${s.evidence ? `<div class="e">Evidence: ${esc(s.evidence)}</div>` : ""}</div></div>`).join("")}</div>`).join("") : "<p>No 5 Whys chains recorded.</p>");
-  html += sec("7", "Root causes", "Physical root: the component mechanism. Human root: the decision or action. Latent root: the organisational gap that allowed it.", c.roots.length ? `<div class="tw"><table><thead><tr><th>#</th><th>Root cause</th><th>Type</th><th>Evidence</th><th>Confidence</th></tr></thead><tbody>${c.roots.map((r, i) => `<tr><td><b>RC${i + 1}</b></td><td>${esc(r.text)}</td><td>${typePill(r.type)}</td><td>${esc(r.evidence || "No evidence yet")}</td><td>${confPill(r.confidence)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No root causes recorded.</p>", true);
-  html += sec("8", "Corrective and preventive actions", "Ordered by the hierarchy of controls. Each action names the Maximo object that will carry it. Click a column heading to sort.", c.capa.length ? `<div class="tw"><table id="capaT"><thead><tr><th data-sort="0">#</th><th data-sort="1">Action</th><th data-sort="2">Root cause</th><th data-sort="3">Type</th><th data-sort="4">Maximo object</th><th data-sort="5">Owner</th><th data-sort="6">Due</th><th data-sort="7">Status</th><th>Effectiveness check</th></tr></thead><tbody>${[...c.capa].sort((a, b) => CAPA_TYPES.indexOf(a.type) - CAPA_TYPES.indexOf(b.type)).map((a, i) => `<tr><td>${i + 1}</td><td>${esc(a.action)}</td><td><b>${rcLabel(a.rootId)}</b></td><td><span class="pill ${a.type === "Eliminate" ? "green" : a.type === "Engineer" ? "teal" : a.type === "Monitor" ? "grey" : "navy"}">${esc(a.type)}</span></td><td>${esc(a.mobj)}</td><td>${esc(a.owner)}</td><td data-v="${esc(a.due)}" style="white-space:nowrap">${fmtDate(a.due)}</td><td>${esc(a.status)}</td><td>${esc(a.check)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No actions recorded.</p>");
+  if (c.useFishbone) html += sec(nx(), "Cause analysis: fishbone (6M)", "Candidate causes by category. Root causes are highlighted; ruled-out causes are struck through.", `<div class="fig">${fishboneSVG(c, brand)}</div>`, true);
+  html += sec(nx(), "Cause analysis: 5 Whys", "", c.whys.length ? c.whys.map(w => `<div class="chain"><h3>${esc(w.title)}</h3>${w.steps.filter(s => s.text).map((s, i, a) => `<div class="wcard ${i === a.length - 1 ? "root" : ""}"><div class="q">Why ${i + 1}</div><div>${esc(s.text)}${s.evidence ? `<div class="e">Evidence: ${esc(s.evidence)}</div>` : ""}</div></div>`).join("")}</div>`).join("") : "<p>No 5 Whys chains recorded.</p>");
+  html += sec(nx(), "Root causes", "Physical root: the component mechanism. Human root: the decision or action. Latent root: the organisational gap that allowed it.", c.roots.length ? `<div class="tw"><table><thead><tr><th>#</th><th>Root cause</th><th>Type</th><th>Evidence</th><th>Confidence</th></tr></thead><tbody>${c.roots.map((r, i) => `<tr><td><b>RC${i + 1}</b></td><td>${esc(r.text)}</td><td>${typePill(r.type)}</td><td>${esc(r.evidence || "No evidence yet")}</td><td>${confPill(r.confidence)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No root causes recorded.</p>", true);
+  html += sec(nx(), "Corrective and preventive actions", "Ordered by the hierarchy of controls. Each action says how it will be carried out. Click a column heading to sort.", c.capa.length ? `<div class="tw"><table id="capaT"><thead><tr><th data-sort="0">#</th><th data-sort="1">Action</th><th data-sort="2">Root cause</th><th data-sort="3">Type</th><th data-sort="4">Carried out through</th><th data-sort="5">Owner</th><th data-sort="6">Due</th><th data-sort="7">Status</th><th>Effectiveness check</th></tr></thead><tbody>${[...c.capa].sort((a, b) => CAPA_TYPES.indexOf(a.type) - CAPA_TYPES.indexOf(b.type)).map((a, i) => `<tr><td>${i + 1}</td><td>${esc(a.action)}</td><td><b>${rcLabel(a.rootId)}</b></td><td><span class="pill ${a.type === "Eliminate" ? "green" : a.type === "Engineer" ? "teal" : a.type === "Monitor" ? "grey" : "navy"}">${esc(a.type)}</span></td><td>${esc(a.mobj)}</td><td>${esc(a.owner)}</td><td data-v="${esc(a.due)}" style="white-space:nowrap">${fmtDate(a.due)}</td><td>${esc(a.status)}</td><td>${esc(a.check)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No actions recorded.</p>");
   const src = c.woSource;
   html += sec("A", "Appendix", "", `<div class="two"><div><h3 style="font-size:13px;margin:0 0 6px">Data sources</h3><ul>
       ${src ? `<li>${esc(src.file)}: ${fmtN(src.totalRows)} rows in file, ${fmtN(src.keptRows)} kept for ${esc(m.asset)}, ${fmtDate(src.dateFrom)} to ${fmtDate(src.dateTo)}, ${src.dupes} duplicate work orders removed. PM and inspection work types excluded from failure counts.</li>
@@ -910,7 +946,7 @@ function buildReport(c) {
       <h3 style="font-size:13px;margin:12px 0 6px">Assumptions</h3><ul>${[c.impact.notes, c.assumptions].filter(Boolean).map(a => `<li>${esc(a)}</li>`).join("") || "<li>None recorded.</li>"}</ul></div>
     <div><h3 style="font-size:13px;margin:0 0 6px">Hypotheses requiring verification</h3><ul>${hypo.map(x => `<li>${esc(x)}</li>`).join("") || "<li>None. All root causes are supported by evidence.</li>"}</ul>
       ${c.dataNeeded ? `<h3 style="font-size:13px;margin:12px 0 6px">Data that would confirm open causes</h3><p>${esc(c.dataNeeded)}</p>` : ""}
-      <h3 style="font-size:13px;margin:12px 0 6px">Method</h3><p>Problem statement (what, where, when, impact), sequence of events, failure history from CMMS work orders, 6M fishbone, 5 Whys to a controllable cause, evidence test with confidence rating (${verified.length} of ${c.roots.length} root causes verified), and CAPA by the hierarchy of controls with an effectiveness check per action. Failure coding follows Maximo failure class › problem › cause › remedy.</p></div></div>`, true);
+      <h3 style="font-size:13px;margin:12px 0 6px">Method</h3><p>Problem statement (what, where, when, impact), sequence of events, failure history from CMMS work orders, ${c.useFishbone ? "6M fishbone, " : ""}5 Whys to a controllable cause, evidence test with confidence rating (${verified.length} of ${c.roots.length} root causes verified), and CAPA by the hierarchy of controls with an effectiveness check per action. Failure coding uses ISO 14224 style equipment class, failure mode, mechanism, cause and remedy.</p></div></div>`, true);
   html += `<div class="foot">${esc(m.reportId)} rev ${esc(m.revision)} · ${esc(m.customer)} · Generated ${fmtDate(isoDay(new Date()))}</div></div></div>`;
   return { css: reportCSS(brand), html };
 }
@@ -1001,10 +1037,10 @@ function exportXlsx() {
   if (typeof XLSX === "undefined") { toast("The spreadsheet library did not load"); return; }
   const c = S.cur; const wb = XLSX.utils.book_new();
   const rc = id => { const i = c.roots.findIndex(r => r.id === id); return i < 0 ? "" : "RC" + (i + 1); };
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(c.capa.map((a, i) => ({ "#": i + 1, Action: a.action, "Root cause": rc(a.rootId), Type: a.type, "Maximo object": a.mobj, Owner: a.owner, Due: a.due, Status: a.status, "Effectiveness check": a.check }))), "CAPA register");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(c.capa.map((a, i) => ({ "#": i + 1, Action: a.action, "Root cause": rc(a.rootId), Type: a.type, "Carried out through": a.mobj, Owner: a.owner, Due: a.due, Status: a.status, "Effectiveness check": a.check }))), "CAPA register");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(c.roots.map((r, i) => ({ "#": "RC" + (i + 1), "Root cause": r.text, Type: r.type, Evidence: r.evidence, Confidence: r.confidence }))), "Root causes");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at))).map(t => ({ "Date time": t.at, Type: TL_KINDS[t.kind], Event: t.text, Source: t.source }))), "Timeline");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(c.wos.map(w => ({ WONUM: w.wonum, ASSETNUM: w.asset, LOCATION: w.location, ACTSTART: w.date, ACTFINISH: w.finish, WORKTYPE: w.worktype, ACTTOTALCOST: num(w.cost), FAILURECODE: w.failurecode, PROBLEM: w.problem, CAUSE: w.cause, REMEDY: w.remedy, DESCRIPTION: w.desc }))), "Work orders");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(c.wos.map(w => ({ "Work order": w.wonum, Asset: w.asset, Location: w.location, Start: w.date, Finish: w.finish, "Work type": w.worktype, Cost: num(w.cost), "Failure class": w.failurecode, Problem: w.problem, Cause: w.cause, Remedy: w.remedy, Description: w.desc }))), "Work orders");
   const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
   offer(safeName(c.meta.reportId + " " + c.meta.title) + ".xlsx", new Blob([out]));
 }
@@ -1014,10 +1050,10 @@ function caseBrief(c) {
   const h = historyOf(c);
   return `Asset: ${c.meta.asset} (${c.meta.assetDesc}). Event date: ${c.meta.eventDate}.
 Problem statement: ${statementOf(c)}
-Maximo coding: class ${c.pcr.failureClass}, problem ${c.pcr.problem}, cause ${c.pcr.cause}, remedy ${c.pcr.remedy}.
+Failure coding: equipment class ${c.pcr.failureClass}, failure mode ${c.pcr.problem}, mechanism ${c.pcr.mechanism}, cause ${c.pcr.cause}, remedy ${c.pcr.remedy}.
 Timeline:\n${[...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at))).map(t => `- ${t.at} [${TL_KINDS[t.kind]}] ${t.text} (source: ${t.source})`).join("\n")}
 Failure history: ${h.fails.length} corrective WOs, ${h.same.length} with the same problem code, MTBF ${h.mtbf ? Math.round(h.mtbf) + " days" : "n/a"}.
-Existing fishbone causes:\n${CATS.map(k => k.k + ": " + c.fishbone[k.k].map(z => z.text + " [" + z.status + "]").join("; ")).join("\n")}
+Existing fishbone causes:\n${(c.useFishbone ? CATS : []).map(k => k.k + ": " + c.fishbone[k.k].map(z => z.text + " [" + z.status + "]").join("; ")).join("\n")}
 Root causes:\n${c.roots.map((r, i) => `RC${i + 1} (${r.type}, ${r.confidence}): ${r.text}. Evidence: ${r.evidence}`).join("\n")}
 Actions: ${c.capa.length}. Cost of failure: ${fmtMoney(costOf(c).total, c.impact.currency)}. Downtime ${c.impact.downtimeHrs} h.`;
 }
@@ -1091,6 +1127,8 @@ document.addEventListener("click", e => {
     case "sort-tl": c.timeline.sort((x, y) => String(x.at).localeCompare(String(y.at))); changed(); break;
     case "del": c[b.dataset.list].splice(i, 1); changed(); break;
     case "add-cause": c.fishbone[b.dataset.cat].push({ id: uid(), text: "", status: "candidate" }); changed(); setTimeout(() => { const ins = document.querySelectorAll(`[data-k^="fishbone.${b.dataset.cat}."][data-k$=".text"]`); ins[ins.length - 1]?.focus(); }, 0); break;
+    case "fish-on": c.useFishbone = true; changed(); break;
+    case "fish-off": c.useFishbone = false; changed(); toast("Fishbone switched off for this case. Your causes are kept if you turn it back on."); break;
     case "del-cause": c.fishbone[b.dataset.cat].splice(i, 1); changed(); break;
     case "add-chain": c.whys.push({ id: uid(), title: "Why did " + (c.meta.asset || "the asset") + " fail?", steps: [{ text: "", evidence: "" }] }); changed(); break;
     case "chain-from": c.whys.push({ id: uid(), title: "Path: " + b.dataset.text, steps: [{ text: b.dataset.text, evidence: "" }, { text: "", evidence: "" }] }); changed(); break;
@@ -1099,7 +1137,7 @@ document.addEventListener("click", e => {
     case "promote": { const w = c.whys[i]; const last = [...w.steps].reverse().find(s => s.text); if (!last) { toast("Write the final why first"); break; } c.roots.push({ id: uid(), text: last.text, type: "Latent / systemic", evidence: last.evidence || "", confidence: last.evidence ? "Medium" : "Low" }); touch(); toast("Added to root causes (step 7)"); renderNav(); break; }
     case "roots-from-fish": { let n = 0; CATS.forEach(k => c.fishbone[k.k].filter(z => z.status === "root" && z.text && !c.roots.some(r => r.text === z.text)).forEach(z => { c.roots.push({ id: uid(), text: z.text, type: k.k === "Manpower" ? "Human" : k.k === "Machine" || k.k === "Material" ? "Physical" : "Latent / systemic", evidence: "", confidence: "Low" }); n++; })); toast(n ? n + " root causes added from the fishbone" : "No new fishbone root causes to add"); changed(); break; }
     case "add-root": c.roots.push({ id: uid(), text: "", type: "Physical", evidence: "", confidence: "Medium" }); changed(); break;
-    case "add-capa": c.capa.push({ id: uid(), action: "", rootId: c.roots[0]?.id || "", type: "Administrative", mobj: "PM", owner: "", due: "", check: "", status: "Proposed" }); changed(); break;
+    case "add-capa": c.capa.push({ id: uid(), action: "", rootId: c.roots[0]?.id || "", type: "Administrative", mobj: "PM / maintenance plan", owner: "", due: "", check: "", status: "Proposed" }); changed(); break;
     case "pick-wo": $("#fileWO").click(); break;
     case "apply-import": applyImport(); break;
     case "cancel-import": S.pendingImport = null; rerender(); break;
@@ -1129,6 +1167,7 @@ $("#fileLogo").addEventListener("change", e => {
 });
 
 /* ---------- boot ---------- */
+$("#lists").innerHTML = Object.entries(LISTS).map(([id, items]) => `<datalist id="${id}">${items.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("");
 async function boot() {
   // first paint from this browser, then light up shared storage
   const all = lsRead();

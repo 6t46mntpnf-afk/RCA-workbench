@@ -1,7 +1,7 @@
 {
   "name": "RCA Workbench",
   "short_name": "RCA",
-  "description": "Guided root cause analysis: 6M fishbone, 5 Whys, Maximo failure history and CAPA, with a customer-ready report.",
+  "description": "Guided root cause analysis: 5 Whys, optional 6M fishbone, failure history and CAPA, with a customer-ready report.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
