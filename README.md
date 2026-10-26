@@ -26,7 +26,7 @@ Open the hosted address (see "Hosting" below), then:
 
 ## Where data lives
 
-Cases are saved in the browser on each device (localStorage). They do not sync between devices.
+Cases are saved on each device in the browser's built-in database (IndexedDB: database `rca-workbench`, store `cases`, one record per case). They do not sync between devices. There is no cost and no server. If a save ever fails (for example the device's storage is full), the app shows a red "Not saved" warning with a button to export the case file.
 To move or back up a case, use **Report & export › Case file (.json)**, then **Open case file** on the other device.
 Clearing the browser's site data deletes saved cases, so export case files you want to keep.
 

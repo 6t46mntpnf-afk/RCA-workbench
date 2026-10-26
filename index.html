@@ -61,6 +61,10 @@ header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; b
 .save-state.ok::before { content: "● "; color: var(--green) }
 .save-state.busy::before { content: "● "; color: var(--amber) }
 .save-state.local::before { content: "● "; color: var(--amber) }
+.save-state.err { color: var(--red); font-weight: 600 }
+.save-state.err::before { content: "● "; color: var(--red) }
+.banner.err { background: var(--red-soft) }
+.banner.err b { color: var(--red) }
 
 .shell { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 20px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 60px }
@@ -450,9 +454,70 @@ function stepCount(c, id) {
 
 /* ---------- state + persistence ---------- */
 const S = { list: [], cur: null, step: "event", db: null, dbReady: false, sample: null, downloads: null, saveTimer: null, pendingImport: null, ai: {} };
+/* Device storage: cases live in IndexedDB ("rca-workbench" database, "cases" store, one record per case).
+   LOCAL is an in-memory mirror loaded at start-up. Older versions used localStorage; those cases are moved
+   across on first run. If IndexedDB is unavailable the app falls back to localStorage. */
 const LS_KEY = "rca-workbench-v1";
+const LOCAL = { cases: {}, last: null };
+let IDB = null;
 function lsRead() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { return null; } }
-function lsWrite(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch (e) { } }
+function lsWrite(v) { localStorage.setItem(LS_KEY, JSON.stringify(v)); }
+function idbOpen() {
+  return new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error("IndexedDB not available"));
+    const r = indexedDB.open("rca-workbench", 1);
+    r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains("cases")) d.createObjectStore("cases", { keyPath: "id" }); if (!d.objectStoreNames.contains("meta")) d.createObjectStore("meta"); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("Storage blocked"));
+  });
+}
+function idbTx(store, mode, fn) {
+  return new Promise((res, rej) => {
+    const tx = IDB.transaction(store, mode); const st = tx.objectStore(store); let out;
+    const r = fn(st); if (r) r.onsuccess = () => { out = r.result; };
+    tx.oncomplete = () => res(out); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error || new Error("Save aborted"));
+  });
+}
+async function localInit() {
+  try {
+    IDB = await idbOpen();
+    const rows = await idbTx("cases", "readonly", st => st.getAll());
+    rows.forEach(c => { if (c && c.id) LOCAL.cases[c.id] = c; });
+    LOCAL.last = await idbTx("meta", "readonly", st => st.get("last")) || null;
+    const old = lsRead();
+    if (old && old.cases && Object.keys(old.cases).length) {
+      // move cases saved by earlier versions into IndexedDB, then clear the old copy
+      for (const c of Object.values(old.cases)) { if (!LOCAL.cases[c.id]) { await idbTx("cases", "readwrite", st => st.put(c)); LOCAL.cases[c.id] = c; } }
+      if (!LOCAL.last && old.last) { LOCAL.last = old.last; await idbTx("meta", "readwrite", st => st.put(old.last, "last")); }
+      try { localStorage.removeItem(LS_KEY); } catch (e) { }
+    }
+  } catch (e) {
+    console.warn("IndexedDB unavailable, using localStorage", e); IDB = null;
+    const old = lsRead(); if (old && old.cases) { LOCAL.cases = old.cases; LOCAL.last = old.last || null; }
+  }
+  try { navigator.storage?.persist?.(); } catch (e) { }
+}
+async function localPut(c) {
+  const copy = JSON.parse(JSON.stringify(c));
+  LOCAL.cases[c.id] = copy; LOCAL.last = c.id;
+  if (IDB) { await idbTx("cases", "readwrite", st => st.put(copy)); await idbTx("meta", "readwrite", st => st.put(c.id, "last")); }
+  else lsWrite(LOCAL);
+}
+async function localDel(id) {
+  delete LOCAL.cases[id];
+  if (IDB) await idbTx("cases", "readwrite", st => st.delete(id)); else lsWrite(LOCAL);
+}
+function localSetLast(id) {
+  LOCAL.last = id;
+  try { if (IDB) idbTx("meta", "readwrite", st => st.put(id, "last")).catch(() => { }); else lsWrite(LOCAL); } catch (e) { }
+}
+function saveFailed(e) {
+  console.warn("Save failed", e);
+  const full = e && (e.name === "QuotaExceededError" || /quota|space/i.test(e.message || ""));
+  S.saveError = full ? "This device's storage for the app is full, so your latest changes are not saved. Export a case file now (Report & export), then delete old cases or remove large logos or imports."
+    : "Your latest changes could not be saved on this device. Export a case file now (Report & export) so nothing is lost.";
+  setSave("err", "Not saved");
+  const b = $("#saveErr"); if (b) b.querySelector("span").textContent = S.saveError; else rerender();
+}
 function setSave(state, text) { const el = $("#savestate"); el.className = "save-state " + state; el.textContent = text; }
 
 function touch() {
@@ -472,17 +537,19 @@ async function saveNow() {
     try { await S.db.doc("cases/" + c.id).set(JSON.parse(JSON.stringify(c))); setSave("ok", "Saved"); return; }
     catch (e) { console.warn(e); }
   }
-  const all = lsRead() || { cases: {} }; all.cases[c.id] = c; all.last = c.id; lsWrite(all);
-  setSave("local", "Saved in this browser only");
+  try { await localPut(c); }
+  catch (e) { saveFailed(e); return; }
+  if (S.saveError) { S.saveError = null; const b = $("#saveErr"); if (b) b.remove(); }
+  setSave("local", "Saved on this device");
 }
 async function loadCase(id) {
   let c = null;
   if (S.db) { try { const snap = await S.db.doc("cases/" + id).get(); if (snap.exists) c = snap.data(); } catch (e) { console.warn(e); } }
-  if (!c) { const all = lsRead(); c = all && all.cases && all.cases[id]; }
+  if (!c) c = LOCAL.cases[id];
   if (!c && id === "example-cv201") c = exampleCase();
   if (!c) return;
   S.cur = normalise(c);
-  const all = lsRead() || { cases: {} }; all.last = id; lsWrite(all);
+  localSetLast(id);
   render();
 }
 function normalise(c) {
@@ -500,7 +567,7 @@ function normalise(c) {
 async function deleteCase() {
   const c = S.cur; if (!c) return;
   if (S.db) { try { await S.db.doc("cases/" + c.id).delete(); } catch (e) { console.warn(e); } }
-  const all = lsRead(); if (all && all.cases) { delete all.cases[c.id]; lsWrite(all); }
+  try { await localDel(c.id); } catch (e) { console.warn(e); }
   S.list = S.list.filter(x => x.id !== c.id);
   S.cur = null;
   if (S.list.length) loadCase(S.list[0].id); else render();
@@ -537,7 +604,8 @@ function render() {
     return;
   }
   const c = S.cur;
-  const banner = c.example ? `<div class="banner"><b>Worked example.</b><span>Illustrative data for a fictional conveyor gearbox. Edit it to learn the flow, or start your own case.</span><button class="btn sm" data-act="new-case">New blank case</button></div>` : "";
+  const errBanner = S.saveError ? `<div class="banner err" id="saveErr"><b>Not saved.</b><span>${esc(S.saveError)}</span><button class="btn sm" data-act="export-json">Export case file</button></div>` : "";
+  const banner = errBanner + (c.example ? `<div class="banner"><b>Worked example.</b><span>Illustrative data for a fictional conveyor gearbox. Edit it to learn the flow, or start your own case.</span><button class="btn sm" data-act="new-case">New blank case</button></div>` : "");
   main.innerHTML = banner + (RENDER[S.step] || RENDER.event)(c);
   afterRender();
 }
@@ -1170,7 +1238,8 @@ $("#fileLogo").addEventListener("change", e => {
 $("#lists").innerHTML = Object.entries(LISTS).map(([id, items]) => `<datalist id="${id}">${items.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("");
 async function boot() {
   // first paint from this browser, then light up shared storage
-  const all = lsRead();
+  await localInit();
+  const all = LOCAL;
   if (all && all.cases) S.list = Object.values(all.cases).map(c => ({ id: c.id, title: c.meta?.title || "Untitled RCA", updatedAt: c.updatedAt, example: !!c.example }));
   if (all && all.last && all.cases[all.last]) S.cur = normalise(all.cases[all.last]);
   else { S.cur = exampleCase(); }
@@ -1185,17 +1254,17 @@ async function boot() {
     try {
       const snap = await db.collection("cases").get();
       const remote = snap.docs.map(d => d.data()).filter(Boolean);
-      const lsCases = (lsRead() || {}).cases || {};
+      const lsCases = LOCAL.cases;
       // move any browser-only cases up to shared storage
       for (const c of Object.values(lsCases)) { if (!remote.some(r => r.id === c.id)) { try { await db.doc("cases/" + c.id).set(c); remote.push(c); } catch (e) { } } }
       S.list = remote.map(c => ({ id: c.id, title: c.meta?.title || "Untitled RCA", updatedAt: c.updatedAt, example: !!c.example }));
-      const lastId = (lsRead() || {}).last;
+      const lastId = LOCAL.last;
       const pick = remote.find(c => c.id === lastId) || remote.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
       if (pick) S.cur = normalise(pick);
       else { S.list = [{ id: S.cur.id, title: S.cur.meta.title, updatedAt: S.cur.updatedAt, example: !!S.cur.example }]; await saveNow(); }
       setSave("ok", "Saved");
-    } catch (e) { console.warn(e); S.db = null; setSave("local", "Saved in this browser only"); }
-  } else setSave("local", "Saved in this browser only");
+    } catch (e) { console.warn(e); S.db = null; setSave("local", "Saved on this device"); }
+  } else setSave("local", "Saved on this device");
   rerender();
 }
 boot();
