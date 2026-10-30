@@ -3,216 +3,324 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Guided root cause analysis with 5 Whys, optional 6M fishbone, failure history and CAPA, with a customer-ready report.">
-<meta name="theme-color" content="#3D72AD">
+<meta name="description" content="Rootline: root cause analysis, lessons learned and safety alerts in one place. Guided 5 Whys, optional fishbone, failure history, actions and customer-ready reports.">
+<meta name="theme-color" content="#F4F4F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="RCA Workbench">
+<meta name="apple-mobile-web-app-title" content="Rootline">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Rootline</title>
 <style>
 /* Base reset (matches the Claude artifact skeleton so the page looks the same in both places) */
-:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) }
+:root { padding-top: env(safe-area-inset-top, 0px) }
 body { margin: 0 } img { max-width: 100% } [hidden] { display: none !important }
-</style>
-<title>RCA Workbench</title>
-<script src="vendor/xlsx.full.min.js"></script>
-<style>
-/* Layout: sticky header, step rail on the left (strip on phones), one working card per RCA step. House palette: navy / teal / amber / red. */
+/* Manrope (SIL Open Font Licence, see vendor/manrope-OFL.txt), served from this app so it works offline */
+@font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url(vendor/manrope-latin-wght-normal.woff2) format("woff2") }
+/* Layout: Steel & Copper app shell (matches Foreman HQ). Sidebar on desktop, bottom tab bar + add button on phone.
+   Views: dashboard, RCA register, one RCA (step rail + working card), lessons learned, safety alerts, settings. Records open in a sheet. */
 :root {
-  --bg: #F7F9FC; --surface: #FFFFFF; --surface-2: #FAFBFD; --fg: #26303C; --muted: #66727F; --line: #E4E9EF;
-  --primary: #3D72AD; --primary-fg: #FFFFFF; --teal: #17A994; --teal-soft: #E8F7F4;
-  --amber: #B97A16; --amber-soft: #FBF0DD; --red: #C8473B; --red-soft: #F8E4E1; --green: #2E8B57; --green-soft: #E2F2E8;
-  --focus: #0F9D8A;
-  --font: "Inter", "Segoe UI Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --bg: #F4F4F2; --surface: #FFFFFF; --surface-2: #EFEFEC; --fg: #1A1A1A; --muted: #6B6B66; --line: #E3E3DF; --hair: #ECECEA;
+  --solid: #1A1A1A; --solid-fg: #FFFFFF; --accent: #B0683A; --accent-soft: #F6EBE3;
+  --amber: #9A5B12; --amber-soft: #FBF1E3; --red: #B3261E; --red-soft: #FBECEB; --green: #2F6B3A; --green-soft: #E7F1E6; --blue: #2C5A8A; --blue-soft: #E8EFF6;
+  --mk-bg: #1A1A1A; --mk-fg: #FFFFFF; --mk-cu: #B0683A;
+  --shadow: 0 1px 2px rgba(26,26,26,.04), 0 6px 24px rgba(26,26,26,.05);
+  --font: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* older step styles read these names */
+  --primary: var(--solid); --primary-fg: var(--solid-fg); --teal: var(--accent); --teal-soft: var(--accent-soft); --surface2: var(--surface-2); --focus: var(--accent);
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0E141B; --surface: #161F29; --surface-2: #1B2531; --fg: #E5EAF0; --muted: #98A4B3; --line: #2A3644;
-  --primary: #7FA7D9; --primary-fg: #0E141B; --teal: #34BFAA; --teal-soft: #15332F;
-  --amber: #E8A33D; --amber-soft: #3A2D16; --red: #E7766B; --red-soft: #3D1F1C; --green: #5CC08A; --green-soft: #17331F;
-  --focus: #34BFAA; color-scheme: dark } }
+  --bg: #121211; --surface: #1C1C1A; --surface-2: #262624; --fg: #ECECE8; --muted: #A3A39C; --line: #2E2E2B; --hair: #262624;
+  --solid: #ECECE8; --solid-fg: #1A1A1A; --accent: #D08A5A; --accent-soft: #33261D;
+  --amber: #E2A65A; --amber-soft: #36291A; --red: #F08A80; --red-soft: #3A1F1C; --green: #7CC48A; --green-soft: #1D2E20; --blue: #8DB3E0; --blue-soft: #1C2734;
+  --mk-bg: #EDEDEA; --mk-fg: #151515; --mk-cu: #D08A5C; --shadow: none; color-scheme: dark } }
 :root[data-theme="dark"] {
-  --bg: #0E141B; --surface: #161F29; --surface-2: #1B2531; --fg: #E5EAF0; --muted: #98A4B3; --line: #2A3644;
-  --primary: #7FA7D9; --primary-fg: #0E141B; --teal: #34BFAA; --teal-soft: #15332F;
-  --amber: #E8A33D; --amber-soft: #3A2D16; --red: #E7766B; --red-soft: #3D1F1C; --green: #5CC08A; --green-soft: #17331F;
-  --focus: #34BFAA; color-scheme: dark }
+  --bg: #121211; --surface: #1C1C1A; --surface-2: #262624; --fg: #ECECE8; --muted: #A3A39C; --line: #2E2E2B; --hair: #262624;
+  --solid: #ECECE8; --solid-fg: #1A1A1A; --accent: #D08A5A; --accent-soft: #33261D;
+  --amber: #E2A65A; --amber-soft: #36291A; --red: #F08A80; --red-soft: #3A1F1C; --green: #7CC48A; --green-soft: #1D2E20; --blue: #8DB3E0; --blue-soft: #1C2734;
+  --mk-bg: #EDEDEA; --mk-fg: #151515; --mk-cu: #D08A5C; --shadow: none; color-scheme: dark }
 
 * { box-sizing: border-box }
-body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px; line-height: 1.5 }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface) }
-h1, h2, h3 { text-wrap: balance; margin: 0 }
+html, body { min-height: 100% }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14.5px; line-height: 1.5; letter-spacing: -.005em }
+h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -.02em }
 button, input, select, textarea { font: inherit; color: inherit }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px }
-.mono { font-family: var(--mono); font-size: 12.5px }
+button { cursor: pointer }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.mono { font-variant-numeric: tabular-nums; font-weight: 600; font-size: .86em; color: var(--muted) }
+.muted { color: var(--muted) }
 
-header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line);
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px }
-.top-in { max-width: 1240px; margin: 0 auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap }
-.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0 }
-.brand svg { flex: none }
-.brand b { font-size: 15px; letter-spacing: .01em }
-.brand span { color: var(--muted); font-size: 12px; display: block; line-height: 1.2 }
-.case-pick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0 }
-.case-pick select { max-width: 280px; min-width: 0 }
-.save-state { font-size: 12px; color: var(--muted); white-space: nowrap }
-.save-state.ok::before { content: "● "; color: var(--green) }
-.save-state.busy::before { content: "● "; color: var(--amber) }
-.save-state.local::before { content: "● "; color: var(--amber) }
-.save-state.err { color: var(--red); font-weight: 600 }
-.save-state.err::before { content: "● "; color: var(--red) }
-.banner.err { background: var(--red-soft) }
-.banner.err b { color: var(--red) }
+/* ---------- app shell ---------- */
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh }
+.side { position: sticky; top: 0; height: 100vh; background: var(--surface); border-right: 1px solid var(--hair); display: flex; flex-direction: column; padding: 18px 12px 16px max(12px, env(safe-area-inset-left, 0px)) }
+.appname { display: flex; align-items: center; gap: 10px; padding: 0 8px 16px; font-weight: 800; font-size: 20px; letter-spacing: -.02em; line-height: 1.1 }
+.appname .mark { width: 38px; height: 38px; flex: none }
+.appname .tag { display: block; font-size: 11.5px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-top: 3px }
+.newbtn { width: 100%; margin: 0 0 14px; min-height: 44px; font-size: 15px; border-radius: 12px }
+.nav { display: flex; flex-direction: column; gap: 2px }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; color: var(--muted); text-decoration: none; font-weight: 600 }
+.nav a:hover { background: var(--bg); color: var(--fg) }
+.nav a[aria-current="page"] { background: var(--bg); color: var(--fg) }
+.nav a[aria-current="page"] svg { color: var(--accent) }
+.nav svg { width: 18px; height: 18px; flex: none }
+.nav .count { margin-left: auto; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums }
+.nav .count.bad { color: var(--red) }
+.side .foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 10px; font-size: 11.5px; color: var(--muted) }
+.sync { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted) }
+.sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none }
+.sync[data-s="ok"] i { background: var(--green) } .sync[data-s="busy"] i { background: var(--amber) } .sync[data-s="err"] i { background: var(--red) } .sync[data-s="err"] { color: var(--red); font-weight: 600 }
+main.view { min-width: 0; padding-block: 24px 48px; padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)) }
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px }
+.mtop { display: none }
+.tabbar, .fab { display: none }
 
-.shell { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 20px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 60px }
-nav.steps { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); align-self: start; display: flex; flex-direction: column; gap: 2px }
-nav.steps button { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 8px; text-align: left; border: 0; background: none;
-  padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--muted) }
-nav.steps button:hover { background: var(--surface) }
-nav.steps button[aria-current="step"] { background: var(--surface); color: var(--fg); box-shadow: inset 3px 0 0 var(--teal) }
-nav.steps .n { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 600 }
-nav.steps .done .n { background: var(--teal); border-color: var(--teal); color: var(--primary-fg) }
-nav.steps .lbl { font-weight: 500; font-size: 13.5px }
+.vhead { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px }
+.vhead .grow { flex: 1 1 260px; min-width: 0 }
+.vhead h1 { font-weight: 800; font-size: 28px; line-height: 1.1 }
+.vhead .lede { color: var(--muted); margin: 4px 0 0; max-width: 64ch }
+.vhead .acts { display: flex; flex-wrap: wrap; gap: 8px }
+.back { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-weight: 600; font-size: 13px; background: none; border: 0; padding: 0; margin-bottom: 6px }
+.back:hover { color: var(--accent) }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 13px; min-height: 36px; cursor: pointer; font-weight: 600; font-size: 13.5px; white-space: nowrap; color: var(--fg); text-decoration: none }
+.btn:hover { background: var(--surface-2) }
+.btn.pri, .btn.primary, .btn.teal { background: var(--solid); color: var(--solid-fg); border-color: var(--solid) }
+.btn.pri:hover, .btn.primary:hover, .btn.teal:hover { opacity: .88; background: var(--solid) }
+.btn.cu { background: var(--accent); border-color: var(--accent); color: #fff }
+.btn.ghost { border-color: transparent; background: none; color: var(--muted) }
+.btn.ghost:hover { color: var(--red); background: none }
+.btn.danger { color: var(--red); border-color: var(--red-soft) }
+.btn.danger.armed { background: var(--red); color: #fff; border-color: var(--red) }
+.btn.sm { min-height: 30px; padding: 4px 10px; font-size: 12.5px }
+.btn[disabled] { opacity: .5; cursor: default }
+.btn svg { width: 16px; height: 16px }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); flex-wrap: wrap }
+.seg button { border: 0; background: none; padding: 7px 12px; font-size: 13.5px; font-weight: 600; color: var(--muted) }
+.seg button[aria-pressed="true"] { background: var(--solid); color: var(--solid-fg) }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.filters input[type=search] { flex: 1 1 220px; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 11px; min-height: 38px }
+
+.dtiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow) }
+.dtile { background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: var(--fg); border: 0; text-align: left; min-width: 0 }
+.dtile:hover { background: var(--bg) }
+.dtile .k { font-size: 12.5px; color: var(--muted) }
+.dtile .v { font-weight: 800; letter-spacing: -.03em; font-size: 32px; line-height: 1.05; font-variant-numeric: tabular-nums }
+.dtile .v.bad { color: var(--red) }
+.dtile .s { font-size: 12px; color: var(--accent); font-weight: 600 }
+.qa { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+.qa button { display: flex; gap: 12px; align-items: flex-start; text-align: left; border: 0; background: var(--surface); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow) }
+.qa button:hover { background: var(--surface-2) }
+.qa svg { width: 26px; height: 26px; flex: none; color: var(--accent); margin-top: 2px }
+.qa b { display: block; font-size: 15.5px }
+.qa small { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.35; margin-top: 2px }
+.qa button.hot svg { color: var(--red) }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px }
+.grid2 > * { min-width: 0 }
+.panel { background: var(--surface); border-radius: 14px; padding: 16px; min-width: 0; box-shadow: var(--shadow) }
+.panel h2 { font-weight: 800; font-size: 15.5px; letter-spacing: -.01em; margin: 0 0 12px; display: flex; align-items: center; gap: 8px }
+.panel h2 .r { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 0 }
+
+.rlist { display: flex; flex-direction: column; background: var(--surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow) }
+.panel .rlist { box-shadow: none; border: 1px solid var(--hair) }
+.lrow { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; align-items: center; background: var(--surface); border: 0; border-bottom: 1px solid var(--hair); padding: 12px 16px 12px 30px; text-align: left; width: 100%; color: var(--fg) }
+.lrow:last-child { border-bottom: 0 }
+.lrow:hover { background: var(--bg) }
+.lrow::before { content: ""; position: absolute; left: 14px; top: 19px; width: 7px; height: 7px; border-radius: 50%; background: var(--dot, var(--line)) }
+.lrow .t { font-weight: 700; min-width: 0; overflow-wrap: anywhere }
+.lrow .t .mono { margin-right: 8px; font-size: 11.5px }
+.lrow .m { grid-column: 1; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 12px; min-width: 0 }
+.lrow .sr { grid-row: 1 / span 2; grid-column: 2; display: flex; flex-direction: column; align-items: flex-end; gap: 6px }
+.dot-red { --dot: var(--red) } .dot-amber { --dot: var(--amber) } .dot-blue { --dot: var(--blue) } .dot-green { --dot: var(--green) } .dot-cu { --dot: var(--accent) }
+.over { color: var(--red); font-weight: 700 }
+.empty { background: var(--surface); border-radius: 14px; padding: 28px 18px; text-align: center; color: var(--muted); box-shadow: var(--shadow) }
+.panel .empty, .rlist .empty { box-shadow: none }
+.empty b { display: block; color: var(--fg); font-size: 16px; margin-bottom: 4px }
+
+.pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 1px 9px; font-size: 12px; font-weight: 700; white-space: nowrap; background: var(--surface-2); color: var(--muted) }
+.pill.red { background: var(--red-soft); color: var(--red) } .pill.amber { background: var(--amber-soft); color: var(--amber) }
+.pill.green { background: var(--green-soft); color: var(--green) } .pill.teal, .pill.cu { background: var(--accent-soft); color: var(--accent) }
+.pill.blue { background: var(--blue-soft); color: var(--blue) } .pill.grey { background: var(--surface-2); color: var(--muted) }
+.pill.ex { background: transparent; border: 1px dashed var(--muted); color: var(--muted); font-weight: 600 }
+
+/* ---------- sheet (record editor) ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(10,10,9,.45); z-index: 40; display: flex; align-items: flex-start; justify-content: center; padding: max(4vh, env(safe-area-inset-top, 0px)) 16px 16px; overflow-y: auto }
+.sheet { background: var(--surface); border-radius: 18px; width: 100%; max-width: 720px; box-shadow: 0 20px 60px rgba(0,0,0,.25); display: flex; flex-direction: column }
+.sheet.wide { max-width: 1180px }
+.sheet > header { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--hair) }
+.sheet > header h2 { flex: 1; min-width: 0; font-weight: 800; font-size: 20px; overflow-wrap: anywhere }
+.x { border: 0; background: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); font-size: 16px }
+.x:hover { background: var(--surface-2) }
+.sform { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; padding: 16px 18px }
+.fl { display: flex; flex-direction: column; gap: 5px; grid-column: 1 / -1; min-width: 0 }
+.fl.half { grid-column: auto }
+.fl > span { font-size: 12.5px; color: var(--muted); font-weight: 600 }
+.fl input, .fl select, .fl textarea { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; min-height: 40px; width: 100%; min-width: 0 }
+.fl textarea { min-height: 84px; resize: vertical }
+.split { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 0 }
+.split .sform { grid-template-columns: 1fr 1fr; align-content: start; border-right: 1px solid var(--hair) }
+.split .prev { padding: 16px 18px; overflow-x: auto; background: var(--bg); min-width: 0 }
+.sheet > footer { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--hair); align-items: center }
+.sheet > footer .sp { flex: 1 }
+.photos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.photos .ph { position: relative }
+.photos img { width: 84px; height: 84px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); display: block }
+.photos .phx { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 11px; padding: 0 }
+
+/* ---------- RCA workspace ---------- */
+.rca-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end }
+.rca-head .grow { flex: 1 1 280px; min-width: 0 }
+.rca-head h1 { font-weight: 800; font-size: 26px; line-height: 1.15; overflow-wrap: anywhere }
+.rca-head .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px }
+.rca-head select { width: auto; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 6px 10px; min-height: 36px; font-weight: 600 }
+.rca-body { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px; align-items: start }
+nav.steps { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); border-radius: 14px; padding: 8px; box-shadow: var(--shadow) }
+nav.steps button { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 8px; text-align: left; border: 0; background: none; padding: 7px 8px; border-radius: 9px; color: var(--muted); font-weight: 600 }
+nav.steps button:hover { background: var(--bg); color: var(--fg) }
+nav.steps button[aria-current="step"] { background: var(--bg); color: var(--fg) }
+nav.steps .n { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 800 }
+nav.steps .done .n { background: var(--solid); border-color: var(--solid); color: var(--solid-fg) }
+nav.steps [aria-current="step"] .n { border-color: var(--accent); color: var(--accent) }
+nav.steps .done[aria-current="step"] .n { background: var(--accent); border-color: var(--accent); color: #fff }
+nav.steps .lbl { font-size: 13.5px }
 nav.steps .ct { font-size: 11px; font-variant-numeric: tabular-nums }
-nav.steps .opt { font-size: 10.5px; color: var(--muted); font-weight: 400 }
-nav.steps .sep { height: 1px; background: var(--line); margin: 8px 10px }
+nav.steps .opt { font-size: 10.5px; color: var(--muted); font-weight: 500 }
+nav.steps .sep { height: 1px; background: var(--hair); margin: 6px 8px }
+#stepmain { min-width: 0 }
 
-main { min-width: 0 }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 22px }
+/* step cards (shared with the RCA method) */
+.card { background: var(--surface); border-radius: 14px; padding: 22px; box-shadow: var(--shadow) }
 .card + .card { margin-top: 16px }
 .step-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-bottom: 18px }
-.step-head h2 { font-size: 20px; font-weight: 650 }
+.step-head h2 { font-size: 20px; font-weight: 800 }
 .step-head p { margin: 4px 0 0; color: var(--muted); max-width: 68ch }
-.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--teal); font-weight: 600 }
-h3.sub { font-size: 14px; font-weight: 650; margin: 22px 0 10px }
+.eyebrow { font-size: 12.5px; color: var(--accent); font-weight: 700 }
+h3.sub { font-size: 14.5px; font-weight: 800; margin: 22px 0 10px; letter-spacing: -.01em }
 h3.sub:first-child { margin-top: 0 }
-
 .grid { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) }
 .grid .wide { grid-column: 1 / -1 }
-label.f { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
-label.f > span { font-size: 12px; color: var(--muted); font-weight: 500 }
-label.f > span em { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--teal) }
-input[type=text], input[type=number], input[type=date], input[type=datetime-local], select, textarea {
-  width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 7px 9px; font-size: 13.5px }
+label.f, div.f { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+label.f > span, div.f > span { font-size: 12.5px; color: var(--muted); font-weight: 600 }
+label.f > span em { font-style: normal; font-size: 11px; color: var(--accent) }
+input[type=text], input[type=number], input[type=date], input[type=datetime-local], input[type=search], input:not([type]), select, textarea {
+  width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; font-size: 14px; min-height: 38px }
 textarea { resize: vertical; min-height: 64px }
-input:focus, select:focus, textarea:focus { border-color: var(--teal); outline: none; box-shadow: 0 0 0 3px var(--teal-soft) }
-input[type=color] { width: 44px; height: 34px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: var(--surface-2) }
-
-.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); padding: 7px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 13px; white-space: nowrap }
-.btn:hover { border-color: var(--muted) }
-.btn.pri { background: var(--primary); color: var(--primary-fg); border-color: var(--primary) }
-.btn.teal { background: var(--teal); color: var(--primary-fg); border-color: var(--teal) }
-.btn.ghost { border-color: transparent; background: none; color: var(--muted) }
-.btn.ghost:hover { color: var(--red) }
-.btn.sm { padding: 4px 8px; font-size: 12px }
-.btn[disabled] { opacity: .5; cursor: default }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft) }
+input[type=color] { width: 44px; height: 36px; border: 1px solid var(--line); border-radius: 10px; padding: 2px; background: var(--bg) }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
-
-.banner { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--amber-soft); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px }
+.banner { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--amber-soft); border: 1px dashed var(--amber); border-radius: 12px; padding: 10px 14px; font-size: 13.5px }
 .banner b { color: var(--amber) }
-.note { font-size: 12.5px; color: var(--muted) }
-.warn { color: var(--amber); font-size: 12.5px }
-.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap }
-.pill.red { background: var(--red-soft); color: var(--red) } .pill.amber { background: var(--amber-soft); color: var(--amber) }
-.pill.green { background: var(--green-soft); color: var(--green) } .pill.teal { background: var(--teal-soft); color: var(--teal) }
-.pill.grey { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line) }
-
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 4px }
-.tile { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px }
-.tile .k { font-size: 11.5px; color: var(--muted) }
-.tile .v { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px }
+.banner.err { background: var(--red-soft); border-color: var(--red) }
+.banner.err b { color: var(--red) }
+.note { font-size: 13px; color: var(--muted) }
+.warn { color: var(--amber); font-size: 13px; font-weight: 600 }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border-radius: 12px; overflow: hidden; margin: 6px 0 4px }
+.tile { background: var(--surface); padding: 12px 14px }
+.tile .k { font-size: 12px; color: var(--muted) }
+.tile .v { font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 2px }
 .tile .v.red { color: var(--red) }
-
-.preview { background: var(--surface-2); border: 1px dashed var(--line); border-radius: 8px; padding: 14px 16px; font-size: 15px; line-height: 1.55 }
-
+.preview { background: var(--bg); border: 1px dashed var(--line); border-radius: 12px; padding: 14px 16px; font-size: 15px; line-height: 1.55 }
 .list { display: flex; flex-direction: column; gap: 8px }
-.item { display: grid; gap: 8px; align-items: start; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px }
+.item { display: grid; gap: 8px; align-items: start; background: var(--bg); border-radius: 12px; padding: 10px }
 .item.tl { grid-template-columns: 190px 150px minmax(0, 1fr) auto }
-.item.capa { grid-template-columns: minmax(0, 1fr) auto }
-.item.root { grid-template-columns: minmax(0, 1fr) auto }
-@media (max-width: 760px) { .item.tl { grid-template-columns: 1fr 1fr } .item.tl > :nth-child(3) { grid-column: 1 / -1 } }
-
-.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px }
+.item.capa, .item.root { grid-template-columns: minmax(0, 1fr) auto }
+.item input, .item select, .item textarea { background: var(--surface) }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px }
 table.t { border-collapse: collapse; width: 100%; font-size: 12.5px }
-table.t th, table.t td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap }
-table.t th { background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 11.5px }
+table.t th, table.t td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--hair); white-space: nowrap }
+table.t th { background: var(--surface-2); color: var(--muted); font-weight: 700; font-size: 11.5px }
 table.t td.num, table.t th.num { text-align: right; font-variant-numeric: tabular-nums }
 table.t tr.hl td { background: var(--red-soft) }
-
-.fish-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 12px }
-.bone { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px }
-.bone h4 { margin: 0 0 2px; font-size: 13.5px; display: flex; justify-content: space-between; gap: 8px }
-.bone .hint { font-size: 11.5px; color: var(--muted); margin-bottom: 8px }
-.cause { display: grid; grid-template-columns: minmax(0, 1fr) 104px auto; gap: 6px; margin-bottom: 6px; align-items: center }
-.cause.root input[type=text] { border-color: var(--teal); font-weight: 600 }
+.fish-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 12px }
+.bone { background: var(--bg); border-radius: 12px; padding: 12px }
+.bone h4 { margin: 0 0 2px; font-size: 14px; font-weight: 800; display: flex; justify-content: space-between; gap: 8px }
+.bone .hint { font-size: 12px; color: var(--muted); margin-bottom: 8px }
+.bone input, .bone select { background: var(--surface) }
+.cause { display: grid; grid-template-columns: minmax(0, 1fr) 112px auto; gap: 6px; margin-bottom: 6px; align-items: center }
+.cause.root input[type=text] { border-color: var(--accent); font-weight: 700 }
 .cause.ruled input[type=text] { text-decoration: line-through; color: var(--muted) }
-.cause .tag { grid-column: 1 / -1; font-size: 11px; color: var(--amber); margin-top: -4px }
-
-.svg-box { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 8px }
+.cause .tag { grid-column: 1 / -1; font-size: 11.5px; color: var(--amber); margin-top: -4px }
+.svg-box { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 8px }
 .svg-box svg { display: block; min-width: 720px; width: 100% }
-
-.why-chain { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--surface-2) }
+.why-chain { border-radius: 12px; padding: 14px; background: var(--bg) }
 .why-chain + .why-chain { margin-top: 12px }
+.why-chain input, .why-chain textarea { background: var(--surface) }
 .why { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, .8fr) auto; gap: 8px; align-items: start; margin-top: 8px }
-.why .q { font-weight: 650; font-size: 12px; color: var(--teal); padding-top: 8px }
-.why.last textarea:first-of-type { border-color: var(--teal) }
-@media (max-width: 760px) { .why { grid-template-columns: 1fr auto } .why .q { grid-column: 1 / -1; padding: 0 } }
-
-.dropzone { border: 2px dashed var(--line); border-radius: 8px; padding: 22px; text-align: center; color: var(--muted); background: var(--surface-2) }
-.dropzone.over { border-color: var(--teal); background: var(--teal-soft) }
+.why .q { font-weight: 800; font-size: 12.5px; color: var(--accent); padding-top: 9px }
+.why.last textarea:first-of-type { border-color: var(--accent) }
+.dropzone { border: 2px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center; color: var(--muted); background: var(--bg) }
+.dropzone.over { border-color: var(--accent); background: var(--accent-soft) }
 .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px }
+.report-host { border-radius: 14px; overflow: hidden; background: #F1F4F8 }
+.ai-box { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; font-size: 13.5px }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--solid); color: var(--solid-fg); padding: 10px 16px; border-radius: 12px; font-size: 14px; z-index: 60; max-width: calc(100% - 32px); box-shadow: var(--shadow) }
+.set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px 16px }
+#printArea { display: none }
+@media print { .app, .tabbar, .fab, .toast, #modal, .mtop { display: none !important } #printArea { display: block } body { background: #fff } }
 
-.report-host { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #F1F4F8 }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: 8px; font-size: 13px; z-index: 20 }
-.ai-box { border: 1px solid var(--teal); background: var(--teal-soft); border-radius: 8px; padding: 10px 12px; font-size: 13px }
-
-@media (max-width: 600px) {
-  .brand span, .case-pick label { display: none }
-  .top-in { gap: 8px }
-  .case-pick { flex-wrap: nowrap; width: 100% }
-  .case-pick select { flex: 1; max-width: none }
-  .save-state { font-size: 0 } .save-state::before { font-size: 14px }
-}
-@media (max-width: 900px) {
-  .shell { grid-template-columns: minmax(0, 1fr) }
-  nav.steps { position: static; flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px }
+@media (max-width: 1100px) {
+  .rca-body { grid-template-columns: minmax(0, 1fr) }
+  nav.steps { position: static; flex-direction: row; overflow-x: auto; gap: 4px; padding: 6px }
   nav.steps button { grid-template-columns: 22px auto; white-space: nowrap }
   nav.steps .ct, nav.steps .sep { display: none }
-  .card { padding: 16px }
 }
-#printArea { display: none }
-footer.legal { text-align: center; font-size: 11.5px; color: var(--muted); padding: 0 16px 28px }
-@media print { header.top, .shell, .toast, footer.legal, body::before { display: none !important } #printArea { display: block } body { background: #fff } }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+@media (max-width: 980px) { .dtiles { grid-template-columns: repeat(2, minmax(0, 1fr)) } .grid2 { grid-template-columns: minmax(0, 1fr) } .split { grid-template-columns: minmax(0, 1fr) } .split .sform { border-right: 0 } }
+@media (max-width: 760px) {
+  .app { display: block }
+  .side { display: none }
+  main.view { padding-block: 10px 120px }
+  .mtop { display: flex; align-items: center; gap: 10px; padding: 4px 0 8px }
+  .mtop .mark { width: 30px; height: 30px; flex: none }
+  .mtop b { font-weight: 800; font-size: 18px; letter-spacing: -.02em; flex: 1 }
+  .vhead h1 { font-size: 24px }
+  .rca-head h1 { font-size: 21px }
+  .qa { grid-template-columns: minmax(0, 1fr) }
+  .lrow { grid-template-columns: minmax(0, 1fr) }
+  .lrow .sr { grid-row: auto; grid-column: 1; flex-direction: row; align-items: center; justify-content: flex-start; margin-top: 4px }
+  .mtop .sync span { display: none }
+  .dtile .v { font-size: 28px }
+  .card { padding: 16px }
+  .sform, .split .sform { grid-template-columns: 1fr }
+  .item.tl { grid-template-columns: 1fr 1fr } .item.tl > :nth-child(3) { grid-column: 1 / -1 }
+  .why { grid-template-columns: 1fr auto } .why .q { grid-column: 1 / -1; padding: 0 }
+  .scrim { padding: 0; align-items: flex-end }
+  .sheet { border-radius: 18px 18px 0 0; max-height: 94vh; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom, 0px) }
+  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--hair); padding: 6px max(4px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px)) }
+  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; padding: 4px 0; position: relative }
+  .tabbar svg { width: 22px; height: 22px }
+  .tabbar [aria-current="page"] { color: var(--fg) }
+  .tabbar [aria-current="page"] svg { color: var(--accent) }
+  .tabbar .dot { position: absolute; top: 0; left: calc(50% + 6px); min-width: 16px; height: 16px; border-radius: 8px; background: var(--red); color: #fff; font-size: 10px; line-height: 16px; padding: 0 4px }
+  .fab { display: grid; place-items: center; position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(76px + env(safe-area-inset-bottom, 0px)); width: 56px; height: 56px; border-radius: 18px; background: var(--solid); color: var(--solid-fg); border: 0; box-shadow: 0 8px 22px rgba(0,0,0,.22); z-index: 31 }
+  .fab svg { width: 26px; height: 26px }
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom, 0px)) }
+}
+@media (prefers-reduced-motion: no-preference) { .lrow, .dtile, .btn { transition: background .15s, border-color .15s } }
+
 </style>
+<script src="vendor/xlsx.full.min.js"></script>
 </head>
 <body>
-<header class="top">
-  <div class="top-in">
-    <div class="brand">
-      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="7" fill="#3D72AD"/><path d="M6 15h13M19 15l5-5M19 15l5 5M10 15l-3-5M10 15l-3 5M14 15l-3-5M14 15l-3 5" stroke="#5FD3C1" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
-      <div><b>RCA Workbench</b><span>Root cause analysis · 6M fishbone · 5 Whys · CAPA</span></div>
-    </div>
-    <div class="case-pick">
-      <label for="casesel" class="note">Case</label>
-      <select id="casesel"></select>
-      <button class="btn" data-act="new-case">New case</button>
-      <span id="savestate" class="save-state"></span>
-    </div>
-  </div>
-</header>
-
-<div class="shell">
-  <nav class="steps" id="nav" aria-label="RCA steps"></nav>
-  <main id="main"></main>
+<div class="app">
+  <aside class="side" aria-label="Main">
+    <div class="appname"></div>
+    <button class="btn pri newbtn" data-act="new-menu">+ New</button>
+    <nav class="nav" id="sidenav"></nav>
+    <div class="foot"><div class="sync" data-s="local" role="status"><i></i><span>Saved on this device</span></div><span>© 2026 Daniel. All rights reserved.</span></div>
+  </aside>
+  <main class="view" id="view"><div class="wrap" id="wrap"></div></main>
 </div>
+<nav class="tabbar" id="tabbar" aria-label="Main"></nav>
+<button class="fab" data-act="new-menu" aria-label="Add new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+<div id="modal"></div>
 <input type="file" id="fileWO" accept=".csv,.xlsx,.xls,.txt" hidden>
-<input type="file" id="fileJSON" accept=".json" hidden>
+<input type="file" id="fileJSON" accept=".json,application/json" hidden>
 <input type="file" id="fileLogo" accept="image/*" hidden>
-<footer class="legal">© 2026 Daniel. All rights reserved. RCA Workbench is proprietary software; copying or redistribution without permission is not allowed.</footer>
+<input type="file" id="fileSetLogo" accept="image/*" hidden>
+<input type="file" id="filePhoto" accept="image/*" multiple hidden>
 <div id="toast" class="toast" hidden></div>
 <div id="lists" hidden></div>
 <div id="printArea"></div>
@@ -311,8 +419,8 @@ function blankCase() {
   const fb = {}; CATS.forEach(c => fb[c.k] = []);
   const today = isoDay(new Date());
   return {
-    id: uid(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), example: false,
-    meta: { title: "", customer: "", site: "", asset: "", assetDesc: "", location: "", eventDate: today, reportId: "RCA-" + today.replace(/-/g, "") + "-01", revision: "A", author: "", team: "", brand: "#3D72AD", logo: "", reportDate: today },
+    id: uid(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), example: false, status: "Draft", closedAt: "",
+    meta: { title: "", customer: "", site: "", asset: "", assetDesc: "", location: "", eventDate: today, reportId: "RCA-" + today.replace(/-/g, "") + "-01", revision: "A", author: "", team: "", brand: DEFAULT_BRAND, logo: "", reportDate: today },
     impact: { consequence: "Production loss", safety: "None", env: "None", downtimeHrs: "", prodRate: "", labour: "", parts: "", other: "", currency: "$", notes: "" },
     pcr: { failureClass: "", problem: "", mechanism: "", cause: "", remedy: "", match: "", recommended: "" },
     problem: { what: "", where: "", when: "", impact: "", statement: "" },
@@ -322,7 +430,7 @@ function blankCase() {
 }
 function exampleCase() {
   const c = blankCase();
-  c.example = true; c.id = "example-cv201";
+  c.example = true; c.id = "example-cv201"; c.status = "Actions open";
   Object.assign(c.meta, { title: "CV-201 head drive gearbox bearing seizure", customer: "Example Customer Ltd", site: "Example Site, Crushing Plant 2", asset: "CV-201-GBX", assetDesc: "Overland conveyor CV-201 head drive gearbox (250 kW)", location: "CP2-CONV-CV201", eventDate: "2026-09-14", reportId: "RCA-20260914-01", revision: "A", author: "Reliability Engineer", team: "Reliability Engineer (lead), Maintenance Supervisor, Lubrication Technician, Production Shift Lead, Planner", reportDate: "2026-10-22" });
   Object.assign(c.impact, { consequence: "Production loss", safety: "None", env: "Minor oil spill, contained on drip tray", downtimeHrs: 39.75, prodRate: 4500, labour: 12800, parts: 38500, other: 2200, currency: "$", notes: "Production rate is the lost margin per hour of conveyor downtime, from the site's downtime cost register." });
   Object.assign(c.pcr, { failureClass: "Gearbox", problem: "Seized / stuck", mechanism: "Wear", cause: "Normal wear and tear", remedy: "Replace", match: "no", recommended: "Poor lubrication practice" });
@@ -452,21 +560,58 @@ function stepCount(c, id) {
   }
 }
 
+/* ---------- app identity ---------- */
+const APP = { name: "Rootline", tagline: "Find it. Fix it. For good.", version: "2.0.0", owner: "Daniel", year: 2026 };
+const DEFAULT_BRAND = "#1A1A1A";
+const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
+const ICON = {
+  home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+  rca: '<circle cx="12" cy="5" r="2.2"/><path d="M12 7.2V13m0 0c0 3-4 3-5 7m5-7c0 3 4 3 5 7m-5-7v7"/>',
+  bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>',
+  alert: '<path d="M12 3.5l9 16.5H3z"/><path d="M12 10v4.5M12 17.4v.01"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>'
+};
+const ic = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
+
+/* RCA register */
+const RCA_STATUS = ["Draft", "In progress", "Actions open", "Closed"];
+const RCA_DOT = { "Draft": "", "In progress": "dot-blue", "Actions open": "dot-amber", "Closed": "dot-green" };
+const RCA_PILL = { "Draft": "grey", "In progress": "blue", "Actions open": "amber", "Closed": "green" };
+const ACTION_DONE = ["Complete", "Verified effective"];
+
+/* Lessons learned (fields follow the lessons-learned method) */
+const LL_CATS = ["Design", "Operations", "Maintenance practice", "Procedures", "Training & competency", "Contractor management", "Spares & supply", "Planning & scheduling", "Communication", "Management of change"];
+const LL_AREAS = ["Safety", "Environment", "Production", "Cost", "Quality"];
+const LL_SEV = ["High", "Medium", "Low"];
+const LL_APPLY = ["Same asset", "Same asset class", "Site-wide", "All sites"];
+const LL_STATUS = ["Open", "In progress", "Embedded", "Verified"];
+const LL_DOT = { "Open": "dot-amber", "In progress": "dot-blue", "Embedded": "dot-green", "Verified": "dot-green" };
+const LL_PILL = { "Open": "amber", "In progress": "blue", "Embedded": "green", "Verified": "green" };
+
+/* Safety alerts (layout follows Daniel's client template) */
+const CONSEQ = ["Insignificant", "Minor", "Moderate", "Major", "Catastrophic"];
+const CRIT_RISKS = ["Contact with electricity", "Working at height", "Lifting operations", "Mobile plant & vehicles", "Excavation & trenching", "Confined space", "Stored energy (non-electrical)", "Hazardous substances", "Fire & explosion", "Isolation failure", "Rotating equipment / entanglement", "Pressure systems"];
+LISTS["dl-crit"] = CRIT_RISKS;
+
 /* ---------- state + persistence ---------- */
-const S = { list: [], cur: null, step: "event", db: null, dbReady: false, sample: null, downloads: null, saveTimer: null, pendingImport: null, ai: {} };
-/* Device storage: cases live in IndexedDB ("rca-workbench" database, "cases" store, one record per case).
-   LOCAL is an in-memory mirror loaded at start-up. Older versions used localStorage; those cases are moved
-   across on first run. If IndexedDB is unavailable the app falls back to localStorage. */
+const KINDS = ["cases", "lessons", "alerts"];
+const S = { view: "dashboard", cur: null, step: "event", data: { cases: {}, lessons: {}, alerts: {} }, db: null, sample: null, downloads: null, timers: {}, pendingImport: null, ai: {}, filter: { rcas: "open", lessons: "all", alerts: "all" }, q: "", edit: null, saveError: null, sync: ["local", "Saved on this device"] };
+let SET = { company: "", logo: "", contact: "", contactEmail: "", seeded: false };
+/* Device storage: IndexedDB database "rca-workbench" (kept from earlier versions) with one store per record type
+   (cases, lessons, alerts) and a "meta" store for the last opened case and the settings. Version 1 had cases only;
+   older still used localStorage, and those cases are moved across on first run. If IndexedDB is unavailable the
+   app falls back to localStorage. Inside Claude, records are saved to the artifact database instead. */
 const LS_KEY = "rca-workbench-v1";
-const LOCAL = { cases: {}, last: null };
 let IDB = null;
+const LOCAL = { cases: {}, lessons: {}, alerts: {}, last: null, settings: null };
 function lsRead() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { return null; } }
-function lsWrite(v) { localStorage.setItem(LS_KEY, JSON.stringify(v)); }
+function lsWrite() { localStorage.setItem(LS_KEY, JSON.stringify(LOCAL)); }
 function idbOpen() {
   return new Promise((res, rej) => {
     if (!window.indexedDB) return rej(new Error("IndexedDB not available"));
-    const r = indexedDB.open("rca-workbench", 1);
-    r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains("cases")) d.createObjectStore("cases", { keyPath: "id" }); if (!d.objectStoreNames.contains("meta")) d.createObjectStore("meta"); };
+    const r = indexedDB.open("rca-workbench", 2);
+    r.onupgradeneeded = () => { const d = r.result; [...KINDS].forEach(k => { if (!d.objectStoreNames.contains(k)) d.createObjectStore(k, { keyPath: "id" }); }); if (!d.objectStoreNames.contains("meta")) d.createObjectStore("meta"); };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("Storage blocked"));
   });
 }
@@ -480,136 +625,520 @@ function idbTx(store, mode, fn) {
 async function localInit() {
   try {
     IDB = await idbOpen();
-    const rows = await idbTx("cases", "readonly", st => st.getAll());
-    rows.forEach(c => { if (c && c.id) LOCAL.cases[c.id] = c; });
+    for (const k of KINDS) (await idbTx(k, "readonly", st => st.getAll()) || []).forEach(r => { if (r && r.id) LOCAL[k][r.id] = r; });
     LOCAL.last = await idbTx("meta", "readonly", st => st.get("last")) || null;
+    LOCAL.settings = await idbTx("meta", "readonly", st => st.get("settings")) || null;
     const old = lsRead();
     if (old && old.cases && Object.keys(old.cases).length) {
-      // move cases saved by earlier versions into IndexedDB, then clear the old copy
+      // move cases saved by the first version into IndexedDB, then clear the old copy
       for (const c of Object.values(old.cases)) { if (!LOCAL.cases[c.id]) { await idbTx("cases", "readwrite", st => st.put(c)); LOCAL.cases[c.id] = c; } }
       if (!LOCAL.last && old.last) { LOCAL.last = old.last; await idbTx("meta", "readwrite", st => st.put(old.last, "last")); }
       try { localStorage.removeItem(LS_KEY); } catch (e) { }
     }
   } catch (e) {
     console.warn("IndexedDB unavailable, using localStorage", e); IDB = null;
-    const old = lsRead(); if (old && old.cases) { LOCAL.cases = old.cases; LOCAL.last = old.last || null; }
+    const old = lsRead(); if (old) KINDS.concat(["last", "settings"]).forEach(k => { if (old[k]) LOCAL[k] = old[k]; });
   }
   try { navigator.storage?.persist?.(); } catch (e) { }
 }
-async function localPut(c) {
-  const copy = JSON.parse(JSON.stringify(c));
-  LOCAL.cases[c.id] = copy; LOCAL.last = c.id;
-  if (IDB) { await idbTx("cases", "readwrite", st => st.put(copy)); await idbTx("meta", "readwrite", st => st.put(c.id, "last")); }
-  else lsWrite(LOCAL);
+async function localPut(kind, rec) {
+  LOCAL[kind][rec.id] = rec;
+  if (IDB) await idbTx(kind, "readwrite", st => st.put(rec)); else lsWrite();
 }
-async function localDel(id) {
-  delete LOCAL.cases[id];
-  if (IDB) await idbTx("cases", "readwrite", st => st.delete(id)); else lsWrite(LOCAL);
+async function localDel(kind, id) {
+  delete LOCAL[kind][id];
+  if (IDB) await idbTx(kind, "readwrite", st => st.delete(id)); else lsWrite();
 }
-function localSetLast(id) {
-  LOCAL.last = id;
-  try { if (IDB) idbTx("meta", "readwrite", st => st.put(id, "last")).catch(() => { }); else lsWrite(LOCAL); } catch (e) { }
+function localMeta(key, val) {
+  LOCAL[key] = val;
+  try { if (IDB) idbTx("meta", "readwrite", st => st.put(val, key)).catch(e => saveFailed(e)); else lsWrite(); } catch (e) { saveFailed(e); }
 }
 function saveFailed(e) {
   console.warn("Save failed", e);
   const full = e && (e.name === "QuotaExceededError" || /quota|space/i.test(e.message || ""));
-  S.saveError = full ? "This device's storage for the app is full, so your latest changes are not saved. Export a case file now (Report & export), then delete old cases or remove large logos or imports."
-    : "Your latest changes could not be saved on this device. Export a case file now (Report & export) so nothing is lost.";
+  S.saveError = full ? "This device's storage for the app is full, so your latest changes are not saved. Download a backup now, then delete old records or remove large photos, logos or imports."
+    : "Your latest changes could not be saved on this device. Download a backup now so nothing is lost.";
   setSave("err", "Not saved");
   const b = $("#saveErr"); if (b) b.querySelector("span").textContent = S.saveError; else rerender();
 }
-function setSave(state, text) { const el = $("#savestate"); el.className = "save-state " + state; el.textContent = text; }
-
-function touch() {
-  if (!S.cur) return;
-  S.cur.updatedAt = new Date().toISOString();
-  setSave("busy", "Saving…");
-  clearTimeout(S.saveTimer);
-  S.saveTimer = setTimeout(saveNow, 700);
+function setSave(state, text) {
+  S.sync = [state, text];
+  document.querySelectorAll(".sync").forEach(el => { el.dataset.s = state; el.querySelector("span").textContent = text; });
 }
-async function saveNow() {
-  const c = S.cur; if (!c) return;
-  const idx = S.list.findIndex(x => x.id === c.id);
-  const summary = { id: c.id, title: c.meta.title || "Untitled RCA", updatedAt: c.updatedAt, example: !!c.example };
-  if (idx >= 0) S.list[idx] = summary; else S.list.unshift(summary);
-  renderCaseSel();
+const syncHTML = () => `<div class="sync" data-s="${S.sync[0]}" role="status"><i></i><span>${esc(S.sync[1])}</span></div>`;
+
+/* touch() marks a record changed and saves it shortly after typing stops. With no arguments it saves the open RCA. */
+function touch(kind = "cases", rec = S.cur) {
+  if (!rec) return;
+  rec.updatedAt = new Date().toISOString();
+  setSave("busy", "Saving…");
+  const t = S.timers[rec.id]; if (t) clearTimeout(t.h);
+  S.timers[rec.id] = { kind, rec, h: setTimeout(() => saveRec(kind, rec), 600) };
+}
+function flushSaves() { Object.values(S.timers).forEach(t => { clearTimeout(t.h); saveRec(t.kind, t.rec); }); }
+async function saveRec(kind, rec) {
+  delete S.timers[rec.id];
+  S.data[kind][rec.id] = rec;
+  const copy = JSON.parse(JSON.stringify(rec));
   if (S.db) {
-    try { await S.db.doc("cases/" + c.id).set(JSON.parse(JSON.stringify(c))); setSave("ok", "Saved"); return; }
+    try { await S.db.doc(kind + "/" + rec.id).set(copy); savedOK("ok", "Saved"); return; }
     catch (e) { console.warn(e); }
   }
-  try { await localPut(c); }
+  try { await localPut(kind, copy); }
   catch (e) { saveFailed(e); return; }
-  if (S.saveError) { S.saveError = null; const b = $("#saveErr"); if (b) b.remove(); }
-  setSave("local", "Saved on this device");
+  savedOK("local", "Saved on this device");
 }
-async function loadCase(id) {
-  let c = null;
-  if (S.db) { try { const snap = await S.db.doc("cases/" + id).get(); if (snap.exists) c = snap.data(); } catch (e) { console.warn(e); } }
-  if (!c) c = LOCAL.cases[id];
-  if (!c && id === "example-cv201") c = exampleCase();
-  if (!c) return;
-  S.cur = normalise(c);
-  localSetLast(id);
-  render();
+function savedOK(state, text) {
+  if (S.saveError) { S.saveError = null; const b = $("#saveErr"); if (b) b.remove(); }
+  if (!Object.keys(S.timers).length) setSave(state, text);
+}
+const saveNow = () => S.cur && saveRec("cases", S.cur);
+async function delRec(kind, id) {
+  const t = S.timers[id]; if (t) { clearTimeout(t.h); delete S.timers[id]; }
+  delete S.data[kind][id];
+  if (S.db) { try { await S.db.doc(kind + "/" + id).delete(); } catch (e) { console.warn(e); } }
+  try { await localDel(kind, id); } catch (e) { console.warn(e); }
+}
+let setTimer = null;
+function saveSettings() {
+  clearTimeout(setTimer);
+  setTimer = setTimeout(async () => {
+    const copy = JSON.parse(JSON.stringify(SET));
+    if (S.db) { try { await S.db.doc("settings/app").set(copy); } catch (e) { console.warn(e); } }
+    localMeta("settings", copy);
+  }, 400);
 }
 function normalise(c) {
   const b = blankCase();
   const out = Object.assign(b, c);
   ["meta", "impact", "pcr", "problem"].forEach(k => out[k] = Object.assign(blankCase()[k], c[k] || {}));
-  if (String(out.meta.brand).toUpperCase() === "#1F3A5F") out.meta.brand = "#3D72AD";
+  if (["#1F3A5F", "#3D72AD", ""].includes(String(out.meta.brand || "").toUpperCase())) out.meta.brand = DEFAULT_BRAND;
   CATS.forEach(k => { if (!out.fishbone[k.k]) out.fishbone[k.k] = []; });
   ["timeline", "wos", "whys", "roots", "capa"].forEach(k => { if (!Array.isArray(out[k])) out[k] = []; });
   out.capa.forEach(a => { if (CARRIED_OLD[a.mobj]) a.mobj = CARRIED_OLD[a.mobj]; });
   // cases saved before the fishbone became optional: keep it on if it has content
   if (c.useFishbone === undefined) out.useFishbone = CATS.some(k => (out.fishbone[k.k] || []).length);
+  // cases saved before the RCA register had a status
+  if (!RCA_STATUS.includes(c.status)) out.status = out.capa.length ? "Actions open" : out.roots.length || out.whys.length ? "In progress" : "Draft";
   return out;
 }
-async function deleteCase() {
-  const c = S.cur; if (!c) return;
-  if (S.db) { try { await S.db.doc("cases/" + c.id).delete(); } catch (e) { console.warn(e); } }
-  try { await localDel(c.id); } catch (e) { console.warn(e); }
-  S.list = S.list.filter(x => x.id !== c.id);
-  S.cur = null;
-  if (S.list.length) loadCase(S.list[0].id); else render();
-  toast("Case deleted");
+const normLesson = l => Object.assign(blankLesson(), l);
+const normAlert = a => { const o = Object.assign(blankAlert(), a); if (!Array.isArray(o.photos)) o.photos = []; return o; };
+const NORM = { cases: normalise, lessons: normLesson, alerts: normAlert };
+
+/* ---------- records ---------- */
+const byDate = (a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+const allCases = () => Object.values(S.data.cases).sort(byDate);
+const allLessons = () => Object.values(S.data.lessons).sort((a, b) => String(b.date).localeCompare(String(a.date)) || byDate(a, b));
+const allAlerts = () => Object.values(S.data.alerts).sort((a, b) => String(b.date).localeCompare(String(a.date)) || byDate(a, b));
+const todayISO = () => isoDay(new Date());
+const rcaStatus = c => c.status || "Draft";
+const isOpen = c => rcaStatus(c) !== "Closed";
+const openActions = c => c.capa.filter(a => !ACTION_DONE.includes(a.status));
+const llOpen = l => l.status === "Open" || l.status === "In progress";
+function overdueActions() {
+  const t = todayISO(), out = [];
+  allCases().forEach(c => c.capa.forEach(a => { if (a.due && a.due < t && !ACTION_DONE.includes(a.status)) out.push({ type: "capa", c, a, due: a.due }); }));
+  allLessons().forEach(l => { if (l.action && l.due && l.due < t && llOpen(l)) out.push({ type: "lesson", l, due: l.due }); });
+  return out.sort((x, y) => x.due.localeCompare(y.due));
+}
+function nextRef(kind, pre) {
+  const y = new Date().getFullYear(), re = new RegExp("^" + pre + "-" + y + "-(\\d+)$");
+  const n = Math.max(0, ...Object.values(S.data[kind]).map(r => +((String(r.ref || "").match(re) || [])[1] || 0)));
+  return pre + "-" + y + "-" + String(n + 1).padStart(3, "0");
+}
+function blankLesson() {
+  const now = new Date().toISOString();
+  return { id: uid(), ref: "", title: "", date: todayISO(), rcaId: "", asset: "", happened: "", expected: "", why: "", lesson: "", category: "Maintenance practice", polarity: "Negative", area: "Production", severity: "Medium", applies: "Same asset class", action: "", owner: "", due: "", status: "Open", createdAt: now, updatedAt: now, example: false };
+}
+function blankAlert() {
+  const now = new Date().toISOString();
+  return { id: uid(), ref: "", title: "", date: todayISO(), location: "", critRisk: "", potCons: "", actCons: "", what: "", prompts: "", photos: [], captions: "", contact: SET.contact || "", contactEmail: SET.contactEmail || "", status: "Draft", issuedAt: "", rcaId: "", createdAt: now, updatedAt: now, example: false };
+}
+function exampleLesson() {
+  return Object.assign(blankLesson(), {
+    id: "example-ll-1", ref: "LL-2026-001", example: true, title: "Job plan rewrites can silently drop OEM tasks", date: "2026-10-22", rcaId: "example-cv201", asset: "Gearboxes (all conveyors)",
+    happened: "During the 2025 job plan consolidation the 6-monthly oil change was removed from JP-GBX-06. The CV-201 gearbox ran 14 months on the same oil and the output bearing seized, stopping the conveyor for 39.75 hours.",
+    expected: "Job plan changes keep every task the OEM requires, or record why a task was removed and who approved it.",
+    why: "Job plan changes were released without a technical review against the OEM manual, so nobody checked that required tasks were kept.",
+    lesson: "Every change to a job plan or PM must be checked against the OEM requirements by a technical reviewer before it is released.",
+    category: "Management of change", polarity: "Negative", area: "Production", severity: "High", applies: "Site-wide",
+    action: "Add a technical review step to the planning procedure (MP-PLN-03) and audit all gearbox job plans against the OEM manuals", owner: "Maintenance Manager", due: "2027-02-28", status: "In progress"
+  });
+}
+function exampleAlert() {
+  return Object.assign(blankAlert(), {
+    id: "example-sa-1", ref: "SA-2026-001", example: true, title: "Conveyor gearbox seized after a missed oil change", date: "2026-09-14", location: "Crushing Plant 2, CV-201 head drive", rcaId: "example-cv201",
+    critRisk: "Rotating equipment / entanglement", potCons: "Major", actCons: "Minor",
+    what: "At 02:15 on night shift the CV-201 head drive gearbox output bearing seized and the conveyor tripped on high temperature.\nMaintenance found the bearing seized and the oil dark with visible metal. A small amount of oil was released and contained on the drip tray. No one was hurt.\nA high vibration reading two days earlier had been raised as a priority 3 work order and was not acted on before the failure.",
+    prompts: "Do you know what to do when a vibration or temperature reading is above alarm?\nHave you seen a PM or job plan that no longer matches the OEM manual?\nBefore working on a seized drive, have all energy sources, including stored belt tension, been isolated and tested?",
+    contact: "Reliability Engineer", contactEmail: "", status: "Issued", issuedAt: "2026-09-16"
+  });
+}
+/* First run: add the worked example RCA, lesson and alert once. Deleted examples are not added back. */
+async function seedExamples() {
+  if (SET.seeded) return;
+  const add = [];
+  if (!Object.keys(S.data.cases).length) add.push(["cases", exampleCase()]);
+  if (!Object.keys(S.data.lessons).length) add.push(["lessons", exampleLesson()]);
+  if (!Object.keys(S.data.alerts).length) add.push(["alerts", exampleAlert()]);
+  add.forEach(([k, r]) => { S.data[k][r.id] = r; });
+  SET.seeded = true; saveSettings();
+  for (const [k, r] of add) await saveRec(k, r);
+}
+
+/* ---------- rendering: app shell ---------- */
+const NAV = [["dashboard", "Dashboard", "Home", "home"], ["rcas", "RCAs", "RCAs", "rca"], ["lessons", "Lessons learned", "Lessons", "bulb"], ["alerts", "Safety alerts", "Alerts", "alert"], ["settings", "Settings", "Settings", "gear"]];
+function navCounts() {
+  return { dashboard: overdueActions().length, rcas: allCases().filter(isOpen).length, lessons: allLessons().filter(llOpen).length, alerts: allAlerts().filter(a => a.status !== "Issued").length, settings: 0 };
+}
+function renderNavs() {
+  const n = navCounts(), cur = S.view === "rca" ? "rcas" : S.view;
+  $("#sidenav").innerHTML = NAV.map(([v, label, , i]) => `<a href="#" data-act="nav" data-view="${v}" ${cur === v ? 'aria-current="page"' : ""}>${ic(i)}<span>${label}</span>${n[v] ? `<span class="count ${v === "dashboard" ? "bad" : ""}" title="${v === "dashboard" ? "Overdue actions" : v === "rcas" ? "Open" : v === "lessons" ? "Not yet embedded" : "Drafts"}">${n[v]}</span>` : ""}</a>`).join("");
+  $("#tabbar").innerHTML = NAV.map(([v, , short, i]) => `<a href="#" data-act="nav" data-view="${v}" ${cur === v ? 'aria-current="page"' : ""}>${ic(i)}<span>${short}</span>${v === "dashboard" && n.dashboard ? `<span class="dot">${n.dashboard}</span>` : ""}</a>`).join("");
+}
+function render() {
+  renderNavs();
+  const err = S.saveError ? `<div class="banner err" id="saveErr"><b>Not saved.</b><span>${esc(S.saveError)}</span><button class="btn sm" data-act="backup">Download a backup</button></div>` : "";
+  $("#wrap").innerHTML = `<div class="mtop">${MARK()}<b>${APP.name}</b>${syncHTML()}</div>` + err + (VIEWS[S.view] || VIEWS.dashboard)();
+  if (S.view === "rca") afterRender();
+}
+function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
+function go(view) { flushSaves(); S.view = view; S.q = ""; S.pendingImport = null; render(); window.scrollTo(0, 0); }
+const seg = (key, opts) => `<div class="seg" role="group" aria-label="Filter">${opts.map(([v, l, n]) => `<button data-act="filter" data-key="${key}" data-val="${v}" aria-pressed="${S.filter[key] === v}">${l}${n != null ? ` <span class="mono">${n}</span>` : ""}</button>`).join("")}</div>`;
+const empty = (title, text, btn) => `<div class="empty"><b>${title}</b>${text}${btn ? `<div style="margin-top:12px">${btn}</div>` : ""}</div>`;
+const caseRef = id => { const c = S.data.cases[id]; return c ? c.meta.reportId : ""; };
+
+/* list rows */
+function rcaRow(c) {
+  const st = rcaStatus(c), oa = openActions(c), t = todayISO(), od = oa.filter(a => a.due && a.due < t).length, done = c.capa.length - oa.length;
+  return `<button class="lrow ${od && isOpen(c) ? "dot-red" : RCA_DOT[st]}" data-act="open-rca" data-id="${esc(c.id)}"><span class="t"><span class="mono">${esc(c.meta.reportId)}</span>${esc(c.meta.title || "Untitled RCA")}</span>
+    <span class="m">${c.meta.asset ? `<span>${esc(c.meta.asset)}</span>` : ""}${c.meta.eventDate ? `<span>${fmtDate(c.meta.eventDate)}</span>` : ""}${c.capa.length ? `<span>${done} of ${c.capa.length} actions done</span>` : ""}${od ? `<span class="over">${od} overdue</span>` : ""}</span>
+    <span class="sr"><span class="pill ${RCA_PILL[st]}">${st}</span>${c.example ? '<span class="pill ex">Example</span>' : ""}</span></button>`;
+}
+function lessonRow(l) {
+  return `<button class="lrow ${LL_DOT[l.status] || ""}" data-act="open-lesson" data-id="${esc(l.id)}"><span class="t"><span class="mono">${esc(l.ref)}</span>${esc(l.title || "Untitled lesson")}</span>
+    <span class="m"><span>${esc(l.category)}</span><span>${esc(l.area)} · ${esc(l.severity)}</span>${l.rcaId && caseRef(l.rcaId) ? `<span>From ${esc(caseRef(l.rcaId))}</span>` : ""}<span>${fmtDate(l.date)}</span></span>
+    <span class="sr"><span class="pill ${LL_PILL[l.status] || ""}">${esc(l.status)}</span>${l.polarity === "Positive" ? '<span class="pill green">Good practice</span>' : ""}${l.example ? '<span class="pill ex">Example</span>' : ""}</span></button>`;
+}
+function alertRow(a) {
+  return `<button class="lrow ${a.status === "Issued" ? "dot-red" : "dot-amber"}" data-act="open-alert" data-id="${esc(a.id)}"><span class="t"><span class="mono">${esc(a.ref)}</span>${esc(a.title || "Untitled alert")}</span>
+    <span class="m">${a.critRisk ? `<span>${esc(a.critRisk)}</span>` : ""}${a.location ? `<span>${esc(a.location)}</span>` : ""}<span>${fmtDate(a.date)}</span></span>
+    <span class="sr"><span class="pill ${a.status === "Issued" ? "red" : "amber"}">${a.status === "Issued" ? "Issued" : "Draft"}</span>${a.example ? '<span class="pill ex">Example</span>' : ""}</span></button>`;
+}
+function overdueRow(x) {
+  if (x.type === "lesson") return `<button class="lrow dot-red" data-act="open-lesson" data-id="${esc(x.l.id)}"><span class="t">${esc(trunc(x.l.action, 110))}</span><span class="m"><span>Lesson ${esc(x.l.ref)}</span>${x.l.owner ? `<span>${esc(x.l.owner)}</span>` : ""}<span class="over">Due ${fmtDate(x.due)}</span></span></button>`;
+  return `<button class="lrow dot-red" data-act="open-rca" data-id="${esc(x.c.id)}" data-step="capa"><span class="t">${esc(trunc(x.a.action || "Action with no description", 110))}</span><span class="m"><span>${esc(x.c.meta.reportId)}</span>${x.a.owner ? `<span>${esc(x.a.owner)}</span>` : ""}<span class="over">Due ${fmtDate(x.due)}</span></span><span class="sr"><span class="pill grey">${esc(x.a.status)}</span></span></button>`;
+}
+
+const VIEWS = {
+dashboard() {
+  const cs = allCases(), open = cs.filter(isOpen), od = overdueActions(), ls = allLessons(), al = allAlerts();
+  const drafts = al.filter(a => a.status !== "Issued").length, notEmb = ls.filter(llOpen).length;
+  const h = new Date().getHours();
+  return `<div class="vhead"><div class="grow"><h1>${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}</h1><p class="lede">${fmtDate(todayISO())}${SET.company ? " · " + esc(SET.company) : ""}</p></div></div>
+  <div class="dtiles">
+    <button class="dtile" data-act="nav" data-view="rcas" data-f="open"><span class="k">Open RCAs</span><span class="v">${open.length}</span><span class="s">${cs.length - open.length} closed</span></button>
+    <button class="dtile" data-act="jump" data-to="pOverdue"><span class="k">Overdue actions</span><span class="v ${od.length ? "bad" : ""}">${od.length}</span><span class="s">${od.length ? "Chase these first" : "All on track"}</span></button>
+    <button class="dtile" data-act="nav" data-view="lessons"><span class="k">Lessons learned</span><span class="v">${ls.length}</span><span class="s">${notEmb} not yet embedded</span></button>
+    <button class="dtile" data-act="nav" data-view="alerts"><span class="k">Safety alerts</span><span class="v">${al.length}</span><span class="s">${drafts} draft${drafts === 1 ? "" : "s"}</span></button>
+  </div>
+  <div class="qa">
+    <button data-act="new-rca">${ic("rca")}<span><b>Start an RCA</b><small>Guided 5 Whys, failure history and actions, with a customer report</small></span></button>
+    <button data-act="new-lesson">${ic("bulb")}<span><b>Capture a lesson</b><small>What happened, why it differed and what to change</small></span></button>
+    <button data-act="new-alert" class="hot">${ic("alert")}<span><b>Raise a safety alert</b><small>Your one-page alert layout, ready to print or send</small></span></button>
+  </div>
+  <div class="grid2">
+    <section class="panel"><h2>Open RCAs <button class="r" data-act="nav" data-view="rcas">All RCAs</button></h2><div class="rlist">${open.slice(0, 6).map(rcaRow).join("") || empty("No open RCAs", "Start one when a failure needs a root cause.")}</div></section>
+    <section class="panel" id="pOverdue"><h2>Overdue actions</h2><div class="rlist">${od.slice(0, 8).map(overdueRow).join("") || empty("Nothing overdue", "RCA actions and lesson actions past their due date show here.")}</div>${od.length > 8 ? `<p class="note" style="margin:8px 0 0">${od.length - 8} more overdue.</p>` : ""}</section>
+  </div>
+  <div class="grid2">
+    <section class="panel"><h2>Recent lessons <button class="r" data-act="nav" data-view="lessons">All lessons</button></h2><div class="rlist">${ls.slice(0, 4).map(lessonRow).join("") || empty("No lessons yet", "Capture one from an RCA or on its own.")}</div></section>
+    <section class="panel"><h2>Recent safety alerts <button class="r" data-act="nav" data-view="alerts">All alerts</button></h2><div class="rlist">${al.slice(0, 4).map(alertRow).join("") || empty("No safety alerts yet", "Raise one to share an event with the crew.")}</div></section>
+  </div>`;
+},
+rcas() {
+  const cs = allCases(), nOpen = cs.filter(isOpen).length;
+  return `<div class="vhead"><div class="grow"><h1>Root cause analyses</h1><p class="lede">Every RCA follows the same method, from event and impact to verified actions and a customer report.</p></div>
+    <div class="acts"><button class="btn" data-act="import-json">Open a file</button><button class="btn pri" data-act="new-rca">${ic("plus")}New RCA</button></div></div>
+  <div class="filters">${seg("rcas", [["open", "Open", nOpen], ["closed", "Closed", cs.length - nOpen], ["all", "All", cs.length]])}<input type="search" data-q="rcas" value="${esc(S.q)}" placeholder="Search title, asset or report ID" aria-label="Search RCAs"></div>
+  <div class="rlist" id="rlist">${listBody("rcas")}</div>`;
+},
+lessons() {
+  const ls = allLessons(), n = ls.filter(llOpen).length;
+  return `<div class="vhead"><div class="grow"><h1>Lessons learned</h1><p class="lede">A lesson is only learned once it is built into a procedure, PM, design standard or training. Track each one until it is embedded.</p></div>
+    <div class="acts"><button class="btn" data-act="ll-xlsx" ${ls.length ? "" : "disabled"}>Excel register</button><button class="btn pri" data-act="new-lesson">${ic("plus")}New lesson</button></div></div>
+  <div class="filters">${seg("lessons", [["all", "All", ls.length], ["open", "Not embedded", n], ["done", "Embedded", ls.length - n], ["good", "Good practice", ls.filter(l => l.polarity === "Positive").length]])}<input type="search" data-q="lessons" value="${esc(S.q)}" placeholder="Search lessons" aria-label="Search lessons"></div>
+  <div class="rlist" id="rlist">${listBody("lessons")}</div>`;
+},
+alerts() {
+  const al = allAlerts(), d = al.filter(a => a.status !== "Issued").length;
+  return `<div class="vhead"><div class="grow"><h1>Safety alerts</h1><p class="lede">One-page alerts in your template: critical risk, consequences, what happened, questions for the crew and up to three photos.</p></div>
+    <div class="acts"><button class="btn pri" data-act="new-alert">${ic("plus")}New safety alert</button></div></div>
+  <div class="filters">${seg("alerts", [["all", "All", al.length], ["draft", "Drafts", d], ["issued", "Issued", al.length - d]])}<input type="search" data-q="alerts" value="${esc(S.q)}" placeholder="Search alerts" aria-label="Search alerts"></div>
+  <div class="rlist" id="rlist">${listBody("alerts")}</div>`;
+},
+rca() {
+  const c = S.cur; if (!c) { S.view = "rcas"; return VIEWS.rcas(); }
+  const st = rcaStatus(c), links = allLessons().filter(l => l.rcaId === c.id).length + allAlerts().filter(a => a.rcaId === c.id).length;
+  return `<div><button class="back" data-act="nav" data-view="rcas">‹ All RCAs</button>
+  <div class="rca-head"><div class="grow"><h1 id="rcaTitle">${esc(c.meta.title || "Untitled RCA")}</h1><div class="meta"><span class="mono">${esc(c.meta.reportId)}</span>${c.meta.asset ? `<span>${esc(c.meta.asset)}</span>` : ""}${c.meta.eventDate ? `<span>${fmtDate(c.meta.eventDate)}</span>` : ""}${links ? `<span>${links} linked lesson${links === 1 ? "" : "s"} and alert${links === 1 ? "" : "s"}</span>` : ""}${st === "Closed" && c.closedAt ? `<span>Closed ${fmtDate(c.closedAt)}</span>` : ""}</div></div>
+    <div class="row"><select id="rcaStatus" aria-label="RCA status">${RCA_STATUS.map(s => `<option ${s === st ? "selected" : ""}>${s}</option>`).join("")}</select>
+    <button class="btn" data-act="lesson-from-rca">${ic("bulb")}Capture lesson</button><button class="btn" data-act="alert-from-rca">${ic("alert")}Raise alert</button>
+    ${st === "Closed" ? `<button class="btn" data-act="reopen-rca">Reopen</button>` : `<button class="btn pri" data-act="close-rca">Close RCA</button>`}</div></div></div>
+  ${c.example ? `<div class="banner"><b>Worked example.</b><span>Illustrative data for a fictional conveyor gearbox. Edit it to learn the flow, or start your own RCA.</span><button class="btn sm" data-act="new-rca">New RCA</button></div>` : ""}
+  <div class="rca-body"><nav class="steps" id="stepnav" aria-label="RCA steps">${stepNavHTML(c)}</nav><div id="stepmain">${(RENDER[S.step] || RENDER.event)(c)}</div></div>`;
+},
+settings() {
+  const est = S.storageEst;
+  return `<div class="vhead"><div class="grow"><h1>Settings</h1><p class="lede">Your company details appear on safety alerts and lesson bulletins, and on RCA reports that have no logo of their own.</p></div></div>
+  <section class="panel"><h2>Your company</h2><div class="set-grid">
+    <label class="f"><span>Company name</span><input type="text" data-sk="company" value="${esc(SET.company)}" placeholder="Shown on alerts and bulletins"></label>
+    <label class="f"><span>Default alert contact (name and role)</span><input type="text" data-sk="contact" value="${esc(SET.contact)}" placeholder="Name – role"></label>
+    <label class="f"><span>Contact email or phone</span><input type="text" data-sk="contactEmail" value="${esc(SET.contactEmail)}"></label>
+    <div class="f"><span>Logo</span><div class="row">${SET.logo ? `<img src="${SET.logo}" alt="Company logo" style="height:36px;max-width:160px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:6px;padding:2px">` : ""}<button class="btn sm" data-act="set-logo">${SET.logo ? "Replace" : "Upload logo"}</button>${SET.logo ? '<button class="btn sm ghost" data-act="set-logo-clear">Remove</button>' : ""}</div></div>
+  </div></section>
+  <section class="panel"><h2>Backup and restore</h2>
+    <p class="note" style="margin:0 0 12px;max-width:72ch">${STANDALONE ? "Everything is saved in this browser on this device (IndexedDB). It does not sync between devices. Download a backup regularly, and use it to move your records to another device." : "Inside Claude, records are saved to your Claude account and sync between your devices. The installed app keeps its own records on each device; move them across with a backup."}${est ? ` Using ${est}.` : ""}</p>
+    <div class="row"><button class="btn pri" data-act="backup">Download a full backup (.json)</button><button class="btn" data-act="import-json">Restore from a backup</button></div>
+    <p class="note" style="margin:10px 0 0">Restoring adds the records in the file and replaces any with the same ID. Nothing else is removed.</p></section>
+  <section class="panel"><h2>Worked examples</h2><p class="note" style="margin:0 0 12px">A fictional conveyor gearbox failure with its RCA, a lesson and a safety alert, to learn the flow or show a customer.</p>
+    <div class="row"><button class="btn" data-act="load-example">Open the example RCA</button><button class="btn" data-act="add-examples">Add any missing examples</button></div></section>
+  <section class="panel"><h2>About</h2><div class="row" style="gap:14px;align-items:center"><span style="width:44px;height:44px;display:block">${MARK()}</span><div><b style="font-size:17px">${APP.name}</b> <span class="mono">v${APP.version}</span><div class="note">${APP.tagline}</div></div></div>
+    <p class="note" style="margin:12px 0 0">© ${APP.year} ${APP.owner}. All rights reserved. ${APP.name} is proprietary software; copying or redistribution without permission is not allowed.</p></section>`;
+}
+};
+function listBody(kind) {
+  const q = S.q.trim().toLowerCase(), f = S.filter[kind];
+  const hit = s => !q || s.join(" ").toLowerCase().includes(q);
+  if (kind === "rcas") {
+    const cs = allCases().filter(c => f === "all" || (f === "open") === isOpen(c)).filter(c => hit([c.meta.title, c.meta.asset, c.meta.reportId, c.meta.site, c.meta.customer, c.meta.assetDesc]));
+    return cs.map(rcaRow).join("") || empty(q ? "No matching RCAs" : f === "closed" ? "No closed RCAs yet" : "No open RCAs", q ? "Try another search." : "Closed RCAs stay here for reference and reporting.", q || f === "closed" ? "" : `<button class="btn pri" data-act="new-rca">New RCA</button>`);
+  }
+  if (kind === "lessons") {
+    const ls = allLessons().filter(l => f === "all" || (f === "open" ? llOpen(l) : f === "done" ? !llOpen(l) : l.polarity === "Positive")).filter(l => hit([l.ref, l.title, l.lesson, l.category, l.asset, l.happened]));
+    return ls.map(lessonRow).join("") || empty(q ? "No matching lessons" : "No lessons here", q ? "Try another search." : "Capture a lesson from an RCA, or on its own.", q ? "" : `<button class="btn pri" data-act="new-lesson">New lesson</button>`);
+  }
+  const al = allAlerts().filter(a => f === "all" || (f === "issued") === (a.status === "Issued")).filter(a => hit([a.ref, a.title, a.location, a.critRisk, a.what]));
+  return al.map(alertRow).join("") || empty(q ? "No matching alerts" : "No safety alerts here", q ? "Try another search." : "Raise an alert to share an event with the crew.", q ? "" : `<button class="btn pri" data-act="new-alert">New safety alert</button>`);
+}
+function stepNavHTML(c) {
+  return STEPS.map(s => {
+    const cnt = stepCount(c, s.id), done = !!cnt, ct = typeof cnt === "number" && cnt > 0 ? cnt : "";
+    return (s.id === "report" ? '<div class="sep"></div>' : "") +
+      `<button class="${done ? "done" : ""}" data-act="go" data-step="${s.id}" ${S.step === s.id ? 'aria-current="step"' : ""}><span class="n">${done && s.id !== "report" ? "✓" : s.n}</span><span class="lbl">${s.label}${s.id === "fishbone" && !c.useFishbone ? ' <span class="opt">optional</span>' : ""}</span><span class="ct">${ct}</span></button>`;
+  }).join("");
+}
+function renderNav() { const n = $("#stepnav"); if (n && S.cur) n.innerHTML = stepNavHTML(S.cur); }
+
+/* ---------- RCA lifecycle ---------- */
+function openRca(id, step) {
+  const c = S.data.cases[id] || (id === "example-cv201" ? exampleCase() : null); if (!c) return;
+  if (!S.data.cases[id]) { S.data.cases[id] = c; saveRec("cases", c); }
+  if (!S.cur || S.cur.id !== id) { S.ai = {}; S.pendingImport = null; S.step = "event"; }
+  if (step) S.step = step;
+  S.cur = c; localMeta("last", id); go("rca");
 }
 function newCase(from) {
   const c = from || blankCase();
-  S.cur = c; S.step = "event"; touch(); saveNow(); render();
+  const ids = new Set(Object.values(S.data.cases).map(x => x.meta.reportId));
+  while (ids.has(c.meta.reportId)) c.meta.reportId = c.meta.reportId.replace(/(\d+)$/, d => String(+d + 1).padStart(d.length, "0"));
+  S.data.cases[c.id] = c; S.cur = c; S.step = "event"; S.ai = {}; S.pendingImport = null;
+  saveRec("cases", c); go("rca");
+}
+async function deleteCase() {
+  const c = S.cur; if (!c) return;
+  await delRec("cases", c.id); S.cur = null; go("rcas"); toast("RCA deleted");
+}
+const AREA_OF = { "Production loss": "Production", "Safety": "Safety", "Environment": "Environment", "Quality": "Quality", "Cost only": "Cost" };
+function lessonFromCase(c) {
+  const latent = c.roots.find(r => r.type === "Latent / systemic") || c.roots[0];
+  const act = latent && c.capa.find(a => a.rootId === latent.id);
+  const cost = costOf(c).total;
+  return { rcaId: c.id, asset: c.meta.asset, title: "", happened: statementOf(c), why: latent ? latent.text : "", action: act ? act.action : "", owner: act ? act.owner : "", due: act ? act.due : "", area: AREA_OF[c.impact.consequence] || "Production", severity: cost > 100000 ? "High" : cost > 10000 ? "Medium" : "Low" };
+}
+function alertFromCase(c) {
+  const tl = [...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at))).filter(t => ["initiating", "failure", "response"].includes(t.kind) && t.text);
+  return { rcaId: c.id, title: c.meta.title, date: c.meta.eventDate || todayISO(), location: [c.meta.site, c.meta.location].filter(Boolean).join(", "), what: [statementOf(c), ...tl.map(t => fmtDT(t.at) + ": " + t.text.replace(/\.?$/, "."))].filter(Boolean).join("\n"), contact: SET.contact || c.meta.author || "" };
 }
 
-/* ---------- rendering: chrome ---------- */
-function renderCaseSel() {
-  const sel = $("#casesel");
-  const list = [...S.list].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
-  sel.innerHTML = list.length ? list.map(x => `<option value="${esc(x.id)}" ${S.cur && S.cur.id === x.id ? "selected" : ""}>${esc(trunc(x.title, 48))}${x.example ? " (example)" : ""}</option>`).join("") + (list.some(x => x.id === "example-cv201") ? "" : `<option value="__example">Open the worked example…</option>`) : `<option value="">No cases yet</option>`;
+/* ---------- record sheets (lessons, alerts, new menu) ---------- */
+function newRecord(kind, prefill) {
+  const r = kind === "lessons" ? blankLesson() : blankAlert();
+  r.ref = nextRef(kind, kind === "lessons" ? "LL" : "SA");
+  Object.assign(r, prefill || {});
+  r.pristine = true; S.data[kind][r.id] = r;
+  openSheet(kind, r.id);
 }
-function renderNav() {
-  const c = S.cur;
-  $("#nav").innerHTML = STEPS.map((s, i) => {
-    const cnt = c ? stepCount(c, s.id) : 0;
-    const done = !!cnt;
-    const ct = typeof cnt === "number" && cnt > 0 ? cnt : "";
-    return (s.id === "report" ? '<div class="sep"></div>' : "") +
-      `<button class="${done ? "done" : ""}" data-act="go" data-step="${s.id}" ${S.step === s.id ? 'aria-current="step"' : ""}><span class="n">${done && s.id !== "report" ? "✓" : s.n}</span><span class="lbl">${s.label}${s.id === "fishbone" && c && !c.useFishbone ? ' <span class="opt">optional</span>' : ""}</span><span class="ct">${ct}</span></button>`;
-  }).join("");
+function openSheet(kind, id) { flushSaves(); S.edit = { kind, id }; renderSheet(); }
+function renderSheet() {
+  const m = $("#modal");
+  if (!S.edit) { m.innerHTML = ""; document.body.style.overflow = ""; return; }
+  const r = S.edit.kind === "menu" ? null : S.data[S.edit.kind][S.edit.id];
+  m.innerHTML = `<div class="scrim">${S.edit.kind === "menu" ? menuSheet() : S.edit.kind === "lessons" ? lessonSheet(r) : alertSheet(r)}</div>`;
+  document.body.style.overflow = "hidden";
+  const f = m.querySelector("[data-autofocus]"); if (f && matchMedia("(min-width: 761px)").matches) f.focus();
 }
-function render() {
-  renderCaseSel(); renderNav();
-  const main = $("#main");
-  if (!S.cur) {
-    main.innerHTML = `<div class="card"><div class="eyebrow">Get started</div><h2 style="font-size:22px;margin:6px 0 8px">Start a root cause analysis</h2>
-      <p class="note" style="max-width:62ch">Each case walks through the same method: event and impact, a cause-free problem statement, the sequence of events, failure history from your CMMS export, a 6M fishbone, 5 Whys, verified root causes and a CAPA register. The report builds itself as you go.</p>
-      <div class="row" style="margin-top:14px"><button class="btn pri" data-act="new-case">New blank case</button><button class="btn" data-act="load-example">Open the worked example</button><button class="btn" data-act="import-json">Open a saved case file</button></div></div>`;
-    return;
+function closeSheet() {
+  const e = S.edit; S.edit = null;
+  if (e && e.kind !== "menu") {
+    const r = S.data[e.kind][e.id];
+    if (r && r.pristine) delete S.data[e.kind][e.id];  // opened as new and never typed in
+    else flushSaves();
   }
-  const c = S.cur;
-  const errBanner = S.saveError ? `<div class="banner err" id="saveErr"><b>Not saved.</b><span>${esc(S.saveError)}</span><button class="btn sm" data-act="export-json">Export case file</button></div>` : "";
-  const banner = errBanner + (c.example ? `<div class="banner"><b>Worked example.</b><span>Illustrative data for a fictional conveyor gearbox. Edit it to learn the flow, or start your own case.</span><button class="btn sm" data-act="new-case">New blank case</button></div>` : "");
-  main.innerHTML = banner + (RENDER[S.step] || RENDER.event)(c);
-  afterRender();
+  renderSheet(); rerender();
 }
-function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
+const recEdited = () => { const r = S.data[S.edit.kind][S.edit.id]; if (r.pristine) delete r.pristine; touch(S.edit.kind, r); return r; };
+function rf(r, k, label, o = {}) {
+  const id = "r_" + k, cls = o.half ? "fl half" : "fl", v = r[k] ?? "";
+  if (o.type === "textarea") return `<label class="${cls}" for="${id}"><span>${label}</span><textarea id="${id}" data-rk="${k}" rows="${o.rows || 3}" placeholder="${esc(o.ph || "")}">${esc(v)}</textarea></label>`;
+  if (o.type === "select") return `<label class="${cls}" for="${id}"><span>${label}</span><select id="${id}" data-rk="${k}">${o.options.map(x => { const [ov, ol] = Array.isArray(x) ? x : [x, x]; return `<option value="${esc(ov)}" ${String(v) === String(ov) ? "selected" : ""}>${esc(ol)}</option>`; }).join("")}</select></label>`;
+  return `<label class="${cls}" for="${id}"><span>${label}</span><input id="${id}" type="${o.type || "text"}" data-rk="${k}" value="${esc(v)}" placeholder="${esc(o.ph || (o.list ? "Choose or type" : ""))}" ${o.list ? `list="${o.list}" autocomplete="off"` : ""} ${o.af ? "data-autofocus" : ""}></label>`;
+}
+const rcaOptions = () => [["", "None"], ...allCases().map(c => [c.id, c.meta.reportId + " · " + trunc(c.meta.title || "Untitled RCA", 48)])];
+function menuSheet() {
+  return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Add new" style="max-width:520px"><header><h2>Add new</h2><button class="x" data-act="close-sheet" aria-label="Close">✕</button></header>
+  <div class="qa" style="grid-template-columns:1fr;padding:16px 18px">
+    <button data-act="new-rca">${ic("rca")}<span><b>Root cause analysis</b><small>Guided method with a customer report</small></span></button>
+    <button data-act="new-lesson">${ic("bulb")}<span><b>Lesson learned</b><small>Capture it and track it until it is embedded</small></span></button>
+    <button data-act="new-alert" class="hot">${ic("alert")}<span><b>Safety alert</b><small>One page in your template, with photos</small></span></button>
+  </div></div>`;
+}
+function lessonSheet(l) {
+  return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Lesson learned"><header><span class="mono">${esc(l.ref)}</span><h2 id="sheetTitle">${esc(l.title || "New lesson")}</h2><button class="x" data-act="close-sheet" aria-label="Close">✕</button></header>
+  <div class="sform">
+    ${rf(l, "title", "Lesson title", { ph: "Short headline, e.g. Job plan rewrites can drop OEM tasks", af: 1 })}
+    ${rf(l, "date", "Date", { type: "date", half: 1 })}
+    ${rf(l, "rcaId", "Linked RCA", { type: "select", options: rcaOptions(), half: 1 })}
+    ${rf(l, "happened", "What happened", { type: "textarea" })}
+    ${rf(l, "expected", "What was expected to happen", { type: "textarea", rows: 2 })}
+    ${rf(l, "why", "Why it was different", { type: "textarea", rows: 2 })}
+    ${rf(l, "lesson", "The lesson (one sentence anyone can act on)", { type: "textarea", rows: 2 })}
+    ${rf(l, "category", "Category", { type: "select", options: LL_CATS, half: 1 })}
+    ${rf(l, "polarity", "Type", { type: "select", options: [["Negative", "Negative: prevent it"], ["Positive", "Positive: repeat it"]], half: 1 })}
+    ${rf(l, "area", "Impact area", { type: "select", options: LL_AREAS, half: 1 })}
+    ${rf(l, "severity", "Severity", { type: "select", options: LL_SEV, half: 1 })}
+    ${rf(l, "applies", "Applies to", { type: "select", options: LL_APPLY, half: 1 })}
+    ${rf(l, "asset", "Asset or asset class", { half: 1, list: "dl-class" })}
+    ${rf(l, "action", "Recommended action (a change to a standard, procedure, PM, design or training)", { type: "textarea", rows: 2 })}
+    ${rf(l, "owner", "Owner (role)", { half: 1, list: "dl-owner" })}
+    ${rf(l, "due", "Due", { type: "date", half: 1 })}
+    ${rf(l, "status", "Status", { type: "select", options: LL_STATUS, half: 1 })}
+    <p class="note fl half" style="align-self:end;margin:0">Embedded means it is built into a procedure, PM, design standard or training. An email or toolbox talk on its own does not count.</p>
+  </div>
+  <footer><button class="btn danger" data-act="del-rec">Delete</button><span class="note">Saves as you type</span><span class="sp"></span><button class="btn" data-act="ll-bulletin">Bulletin (.html)</button>${STANDALONE ? '<button class="btn" data-act="ll-print">Print</button>' : ""}<button class="btn pri" data-act="close-sheet">Done</button></footer></div>`;
+}
+function alertSheet(a) {
+  return `<div class="sheet wide" role="dialog" aria-modal="true" aria-label="Safety alert"><header><span class="mono">${esc(a.ref)}</span><h2 id="sheetTitle">${esc(a.title || "New safety alert")}</h2><span class="pill ${a.status === "Issued" ? "red" : "amber"}">${a.status === "Issued" ? "Issued " + fmtDate(a.issuedAt) : "Draft"}</span><button class="x" data-act="close-sheet" aria-label="Close">✕</button></header>
+  <div class="split"><div class="sform">
+    ${rf(a, "title", "Event title", { af: 1 })}
+    ${rf(a, "date", "Date of event", { type: "date", half: 1 })}
+    ${rf(a, "location", "Location", { half: 1 })}
+    ${rf(a, "critRisk", "Critical risk", { list: "dl-crit" })}
+    ${rf(a, "potCons", "Potential consequence", { type: "select", options: [["", "Choose"], ...CONSEQ], half: 1 })}
+    ${rf(a, "actCons", "Actual consequence", { type: "select", options: [["", "Choose"], ...CONSEQ], half: 1 })}
+    ${rf(a, "what", "What happened? (plain words for the crew, one paragraph per line)", { type: "textarea", rows: 5 })}
+    ${rf(a, "prompts", "Prompts / questions for your team (one per line)", { type: "textarea", rows: 4, ph: "e.g. Have all sources of energy been identified?" })}
+    <div class="fl"><span>Photos (up to 3)</span><div class="photos">${a.photos.map((p, i) => `<div class="ph"><img src="${p}" alt="Photo ${i + 1}"><button class="phx" data-act="photo-del" data-i="${i}" aria-label="Remove photo ${i + 1}">✕</button></div>`).join("")}${a.photos.length < 3 ? `<button class="btn sm" data-act="photo-add">Add photo</button>` : ""}</div></div>
+    ${rf(a, "captions", "Photo captions (one per line, in photo order)", { type: "textarea", rows: 2 })}
+    ${rf(a, "contact", "Contact person and role", { half: 1, ph: "Name – role" })}
+    ${rf(a, "contactEmail", "Contact email or phone", { half: 1 })}
+    ${rf(a, "rcaId", "Linked RCA", { type: "select", options: rcaOptions() })}
+  </div><div class="prev" id="saPrev">${alertHTML(a)}</div></div>
+  <footer><button class="btn danger" data-act="del-rec">Delete</button><span class="sp"></span><button class="btn" data-act="sa-copy">Copy text</button><button class="btn" data-act="sa-word">Download for Word</button><button class="btn" data-act="sa-html">Download to print</button>${STANDALONE ? '<button class="btn" data-act="sa-print">Print</button>' : ""}
+    ${a.status === "Issued" ? `<button class="btn" data-act="sa-draft">Back to draft</button><button class="btn pri" data-act="close-sheet">Done</button>` : `<button class="btn" data-act="close-sheet">Save draft</button><button class="btn pri" data-act="sa-issue">Save &amp; mark issued</button>`}</footer></div>`;
+}
+
+/* ---------- safety alert output (Daniel's client layout) ---------- */
+function alertHTML(x) {
+  const paras = t => String(t || "").split(/\n+/).filter(s => s.trim()).map(p => `<p style="margin:0 0 12px">${esc(p.replace(/^\s*[-•*]\s*/, ""))}</p>`).join("") || "<p>–</p>";
+  const caps = String(x.captions || "").split("\n"), ph = (x.photos || []).slice(0, 3);
+  const lab = "color:#ED7D31;font-weight:700;font-size:16px", cell = "border:1px solid #1a1a1a;padding:6px 8px;vertical-align:top";
+  return `<div style="background:#fff;color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;padding:14px 18px;min-width:640px">
+  <table style="width:100%;border-collapse:collapse;margin-bottom:12px"><tr><td style="width:180px">${SET.logo ? `<img src="${SET.logo}" alt="" style="max-height:60px;max-width:170px">` : `<b>${esc(SET.company)}</b>`}</td><td style="text-align:center;color:#E00000;font-size:40px;font-weight:800">Safety Alert</td><td style="width:180px;text-align:right;font-size:12px;color:#555">${esc(x.ref)}<br>${fmtDate(x.date)}</td></tr></table>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <tr><td colspan="3" style="${cell}"><table style="width:100%;border-collapse:collapse"><tr><td style="padding:4px"><b>Critical Risk:</b> ${esc(x.critRisk)}</td><td style="padding:4px"><b>Event Title: ${esc(x.title)}</b></td><td style="padding:4px"><b>Location: ${esc(x.location)}</b></td></tr></table></td></tr>
+    <tr>
+      <td style="${cell};width:33%;border-right:0;padding:0"><div style="text-align:center;padding:6px"><div style="${lab}">Potential Consequence</div><div>${esc(x.potCons)}</div></div><div style="border-top:1px solid #1a1a1a;text-align:center;font-weight:700;padding:3px">What happened?</div><div style="padding:12px 8px">${paras(x.what)}</div></td>
+      <td style="${cell};width:33%;border-left:0;padding:0"><div style="text-align:center;padding:6px"><div style="${lab}">Actual Consequence</div><div>${esc(x.actCons)}</div></div><div style="border-top:1px solid #1a1a1a;text-align:center;font-weight:700;padding:3px">Prompts/Questions for your team:</div><div style="padding:12px 8px">${paras(x.prompts)}</div></td>
+      <td style="${cell};width:34%;padding:8px">${ph.map((p, i) => `<img src="${p}" alt="Event photo ${i + 1}" style="width:100%;max-height:${i === 0 ? "200px" : "170px"};object-fit:cover;display:block;margin:${i ? "10px" : "0"} 0 0">${caps[i] ? `<div style="font-size:15px;margin-top:4px">${esc(caps[i])}</div>` : ""}`).join("") || `<p style="color:#777">Add up to three photos</p>`}</td>
+    </tr>
+    <tr><td colspan="3" style="${cell}"><b>Contact Person:</b> ${esc(x.contact)}${x.contactEmail ? ` · ${esc(x.contactEmail)}` : ""}</td></tr>
+  </table></div>`;
+}
+function alertText(x) {
+  const L = ["SAFETY ALERT: " + (x.title || ""), `Critical risk: ${x.critRisk || "-"} · Location: ${x.location || "-"} · Potential consequence: ${x.potCons || "-"} · Actual consequence: ${x.actCons || "-"}`, [SET.company, fmtDate(x.date), x.ref].filter(Boolean).join(" · "), ""];
+  if (x.what) L.push("WHAT HAPPENED", x.what.trim(), "");
+  const pr = String(x.prompts || "").split("\n").map(s => s.trim()).filter(Boolean);
+  if (pr.length) { L.push("PROMPTS / QUESTIONS FOR YOUR TEAM"); pr.forEach(p => L.push("- " + p.replace(/^[-•*]\s*/, ""))); L.push(""); }
+  if (x.captions) L.push("Photos: " + x.captions.split("\n").filter(Boolean).join("; "), "");
+  L.push("Contact: " + (x.contact || "-") + (x.contactEmail ? ", " + x.contactEmail : ""));
+  return L.join("\n");
+}
+const alertFile = (x, word) => `${word ? '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' : "<!doctype html><html lang=\"en\">"}<head><meta charset="utf-8"><title>${esc(x.ref)} Safety Alert</title><style>@page{size:A4 landscape;margin:10mm}body{margin:24px;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>${alertHTML(x)}</body></html>`;
+const alertName = x => safeName(x.ref + " safety alert " + x.title);
+async function addPhotos(files) {
+  const a = S.data.alerts[S.edit.id];
+  for (const f of [...files].slice(0, 3 - a.photos.length)) {
+    try { a.photos.push(await shrinkImage(f, 1000, "image/jpeg", .72)); } catch (e) { toast("That image could not be read"); }
+  }
+  recEdited(); renderSheet();
+}
+function shrinkImage(f, max, type, q) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => { const s = Math.min(1, max / img.width, max / img.height); const cv = document.createElement("canvas"); cv.width = Math.round(img.width * s); cv.height = Math.round(img.height * s); const g = cv.getContext("2d"); if (type === "image/jpeg") { g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height); } g.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); res(cv.toDataURL(type, q)); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("bad image")); };
+    img.src = url;
+  });
+}
+
+/* ---------- lesson outputs ---------- */
+function lessonBulletin(l) {
+  const sevCol = { High: "#B3261E", Medium: "#9A5B12", Low: "#2F6B3A" }[l.severity] || "#6B6B66";
+  const blk = (h, t, hi) => t ? `<div class="b${hi ? " hi" : ""}"><h3>${h}</h3><p>${esc(t).replace(/\n/g, "<br>")}</p></div>` : "";
+  const rc = l.rcaId && S.data.cases[l.rcaId];
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(l.ref)} ${esc(l.title)}</title><style>
+  @page{size:A4;margin:14mm}body{margin:0;background:#F4F4F2;font-family:Manrope,Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1A1A1A;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pg{max-width:800px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden}
+  .hd{background:#1A1A1A;color:#fff;padding:22px 28px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+  .hd .k{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#E3B08A;font-weight:700}.hd .r{font-size:13px;opacity:.8;text-align:right}
+  .hd img{max-height:40px;max-width:150px;background:#fff;border-radius:4px;padding:3px}
+  .bd{padding:24px 28px}h1{font-size:28px;line-height:1.15;margin:0 0 12px;letter-spacing:-.02em}
+  .pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}.pill{border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;background:#EFEFEC;color:#555}
+  .b{margin:0 0 14px}.b h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#B0683A;margin:0 0 4px}.b p{margin:0;font-size:15px;line-height:1.55}
+  .b.hi{background:#F6EBE3;border-left:4px solid #B0683A;border-radius:6px;padding:12px 16px}.b.hi p{font-size:18px;font-weight:700}
+  .act{border:1px solid #E3E3DF;border-radius:8px;padding:12px 16px;margin-top:6px}.act table{width:100%;font-size:13px;border-collapse:collapse}.act td{padding:3px 0;vertical-align:top}.act td:first-child{color:#6B6B66;width:110px}
+  .ft{padding:12px 28px 18px;color:#6B6B66;font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid #ECECEA}
+  @media print{body{background:#fff}.pg{margin:0;border-radius:0;max-width:none}}
+  </style></head><body><div class="pg">
+  <div class="hd"><div><div class="k">Lesson learned</div><div style="font-size:15px;font-weight:700;margin-top:4px">${esc(SET.company || "")}</div></div><div class="r">${SET.logo ? `<img src="${SET.logo}" alt=""><br>` : ""}${esc(l.ref)} · ${fmtDate(l.date)}</div></div>
+  <div class="bd"><h1>${esc(l.title || "Untitled lesson")}</h1>
+  <div class="pills"><span class="pill" style="background:${l.polarity === "Positive" ? "#E7F1E6;color:#2F6B3A" : "#FBECEB;color:#B3261E"}">${l.polarity === "Positive" ? "Good practice: repeat it" : "Prevent it"}</span><span class="pill">${esc(l.category)}</span><span class="pill" style="color:${sevCol}">${esc(l.area)} · ${esc(l.severity)}</span><span class="pill">Applies to: ${esc(l.applies)}</span>${l.asset ? `<span class="pill">${esc(l.asset)}</span>` : ""}</div>
+  ${blk("What happened", l.happened)}${blk("What we expected", l.expected)}${blk("Why it was different", l.why)}${blk("The lesson", l.lesson, true)}
+  ${l.action ? `<div class="b"><h3>What to do differently</h3><div class="act"><p style="margin:0 0 8px;font-size:15px">${esc(l.action)}</p><table><tr><td>Owner</td><td>${esc(l.owner || "–")}</td></tr><tr><td>Due</td><td>${fmtDate(l.due) || "–"}</td></tr><tr><td>Status</td><td>${esc(l.status)}</td></tr></table></div></div>` : ""}
+  </div><div class="ft"><span>${rc ? "From RCA " + esc(rc.meta.reportId) + ": " + esc(rc.meta.title) : ""}</span><span>Share at your next toolbox talk or pre-start.</span></div></div></body></html>`;
+}
+function exportLessonsXlsx() {
+  if (typeof XLSX === "undefined") { toast("The spreadsheet library did not load"); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allLessons().map(l => ({ Ref: l.ref, Date: l.date, Title: l.title, "What happened": l.happened, Expected: l.expected, "Why it differed": l.why, Lesson: l.lesson, Category: l.category, Type: l.polarity, "Impact area": l.area, Severity: l.severity, "Applies to": l.applies, Asset: l.asset, "Recommended action": l.action, Owner: l.owner, Due: l.due, Status: l.status, "Linked RCA": caseRef(l.rcaId) }))), "Lessons register");
+  offer("Lessons-learned-register-" + todayISO() + ".xlsx", new Blob([XLSX.write(wb, { type: "array", bookType: "xlsx" })]));
+}
+function printHTML(css, html) { $("#printArea").innerHTML = `<style>${css}</style>${html}`; setTimeout(() => window.print(), 60); }
+
+/* ---------- backup ---------- */
+function backupJSON() {
+  const set = Object.assign({}, SET); delete set.seeded;
+  return JSON.stringify({ app: APP.name, format: "rootline-backup", version: 2, exportedAt: new Date().toISOString(), settings: set, cases: Object.values(S.data.cases), lessons: Object.values(S.data.lessons), alerts: Object.values(S.data.alerts) }, null, 1);
+}
+async function restoreBackup(b) {
+  let n = 0;
+  for (const k of KINDS) for (const r of (Array.isArray(b[k]) ? b[k] : [])) { if (r && r.id) { const x = NORM[k](r); S.data[k][x.id] = x; await saveRec(k, x); n++; } }
+  if (b.settings && typeof b.settings === "object") { Object.assign(SET, b.settings, { seeded: true }); saveSettings(); }
+  return n;
+}
+
 function head(eyebrow, title, desc, right) {
   return `<div class="step-head"><div><div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${desc ? `<p>${desc}</p>` : ""}</div>${right ? `<div class="row">${right}</div>` : ""}</div>`;
 }
@@ -672,10 +1201,10 @@ event(c) {
     ${fld("meta.author", "Author", m.author)}
     ${fld("meta.reportDate", "Report date", m.reportDate, { type: "date" })}
     ${fld("meta.team", "RCA team", m.team, { wide: true, ph: "Names or roles, comma separated" })}
-    <label class="f" for="f_brand"><span>Brand colour</span><div class="row"><input id="f_brand" type="color" data-k="meta.brand" value="${esc(m.brand || "#3D72AD")}"><span class="mono">${esc(m.brand)}</span></div></label>
-    <div class="f"><span class="note">Customer logo</span><div class="row">${m.logo ? `<img src="${m.logo}" alt="Logo" style="height:34px;max-width:140px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px;padding:2px">` : ""}<button class="btn sm" data-act="logo">${m.logo ? "Replace" : "Upload logo"}</button>${m.logo ? '<button class="btn sm ghost" data-act="logo-clear">Remove</button>' : ""}</div></div>
+    <label class="f" for="f_brand"><span>Brand colour</span><div class="row"><input id="f_brand" type="color" data-k="meta.brand" value="${esc(m.brand || DEFAULT_BRAND)}"><span class="mono">${esc(m.brand)}</span></div></label>
+    <div class="f"><span class="note">Customer logo (blank uses your company logo from Settings)</span><div class="row">${m.logo ? `<img src="${m.logo}" alt="Logo" style="height:34px;max-width:140px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px;padding:2px">` : ""}<button class="btn sm" data-act="logo">${m.logo ? "Replace" : "Upload logo"}</button>${m.logo ? '<button class="btn sm ghost" data-act="logo-clear">Remove</button>' : ""}</div></div>
   </div>
-  <div class="row" style="margin-top:18px;justify-content:space-between"><button class="btn ghost" data-act="delete-case">Delete this case</button><button class="btn pri" data-act="go" data-step="problem">Next: problem statement</button></div>
+  <div class="row" style="margin-top:18px;justify-content:space-between"><button class="btn ghost" data-act="delete-case">Delete this RCA</button><button class="btn pri" data-act="go" data-step="problem">Next: problem statement</button></div>
   </div>`;
 },
 problem(c) {
@@ -839,7 +1368,7 @@ function autoSummary(c) {
 }
 
 /* ---------- SVG builders (shared by the app and the report) ---------- */
-const PAL = { navy: "#3D72AD", teal: "#0F9D8A", amber: "#E8A33D", red: "#C8473B", green: "#2E8B57", grey: "#5B6675", line: "#D5DCE4", ink: "#1C2430", soft: "#F5F7FA" };
+const PAL = { navy: "#1A1A1A", teal: "#B0683A", amber: "#E8A33D", red: "#C8473B", green: "#2E8B57", grey: "#5B6675", line: "#D5DCE4", ink: "#1C2430", soft: "#F5F7FA" };
 function timelineSVG(c, accent) {
   const ev = [...c.timeline].filter(t => t.at || t.text).sort((a, b) => String(a.at).localeCompare(String(b.at)));
   if (!ev.length) return "";
@@ -907,11 +1436,11 @@ function fishboneSVG(c, accent) {
 /* ---------- report ---------- */
 function reportCSS(brand) {
   return `
-  .rpt{--brand:${brand};--teal:#0F9D8A;--amber:#E8A33D;--red:#C8473B;--green:#2E8B57;--ink:#1C2430;--muted:#5B6675;--line:#DCE2E9;--soft:#F5F7FA;
-    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:#F1F4F8;font-size:13.5px;line-height:1.55;padding:24px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rpt{--brand:${brand};--teal:#B0683A;--amber:#E8A33D;--red:#C8473B;--green:#2E8B57;--ink:#1C2430;--muted:#5B6675;--line:#DCE2E9;--soft:#F5F7FA;
+    font-family:Manrope,Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:#F4F4F2;font-size:13.5px;line-height:1.55;padding:24px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .rpt *{box-sizing:border-box}
   .rpt .pg{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-  .rpt .cover{background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 70%,#5FC9B8));color:#fff;border-radius:8px;padding:34px 36px;display:grid;grid-template-columns:1fr auto;gap:20px}
+  .rpt .cover{background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 72%,#B0683A));color:#fff;border-radius:8px;padding:34px 36px;display:grid;grid-template-columns:1fr auto;gap:20px}
   .rpt .cover .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.8;font-weight:600}
   .rpt .cover h1{font-size:30px;line-height:1.15;margin:8px 0 18px;font-weight:700;text-wrap:balance;max-width:24ch}
   .rpt .cover dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 22px;margin:0}
@@ -939,7 +1468,7 @@ function reportCSS(brand) {
   .rpt .kv td:first-child{color:var(--muted);width:42%}
   .rpt .tw{overflow-x:auto}
   .rpt .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:700;white-space:nowrap}
-  .rpt .pill.red{background:#F8E4E1;color:#A3362B} .rpt .pill.amber{background:#FBF0DD;color:#94600F} .rpt .pill.green{background:#E2F2E8;color:#226B43} .rpt .pill.navy{background:#E8F0F9;color:#2F5D8C} .rpt .pill.teal{background:#E3F4F1;color:#0B7366} .rpt .pill.grey{background:#EEF1F4;color:#5B6675}
+  .rpt .pill.red{background:#F8E4E1;color:#A3362B} .rpt .pill.amber{background:#FBF0DD;color:#94600F} .rpt .pill.green{background:#E2F2E8;color:#226B43} .rpt .pill.navy{background:#E8EFF6;color:#2C5A8A} .rpt .pill.teal{background:#F6EBE3;color:#8A4F2A} .rpt .pill.grey{background:#EEF1F4;color:#5B6675}
   .rpt .fig{overflow-x:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:6px 0 12px}
   .rpt .fig svg{display:block;width:100%;min-width:680px}
   .rpt .chain{margin-bottom:18px}
@@ -947,7 +1476,7 @@ function reportCSS(brand) {
   .rpt .wcard{display:grid;grid-template-columns:70px 1fr;gap:12px;background:var(--soft);border-radius:8px;padding:10px 14px;margin-bottom:6px;border-left:3px solid var(--line)}
   .rpt .wcard .q{font-weight:700;color:var(--teal);font-size:12px}
   .rpt .wcard .e{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .rpt .wcard.root{background:#E3F4F1;border-left-color:var(--teal)}
+  .rpt .wcard.root{background:#F6EBE3;border-left-color:var(--teal)}
   .rpt .wcard.root .q::after{content:" · root";}
   .rpt .callout{background:#FBF0DD;border-radius:8px;padding:12px 16px;font-size:12.5px;margin-top:10px}
   .rpt .callout.ok{background:#E2F2E8}
@@ -961,7 +1490,7 @@ function reportCSS(brand) {
   `;
 }
 function buildReport(c) {
-  const m = c.meta, k = costOf(c), h = historyOf(c), cur = c.impact.currency, brand = (!m.brand || m.brand.toUpperCase() === "#1F3A5F") ? "#3D72AD" : m.brand;
+  const m = c.meta, k = costOf(c), h = historyOf(c), cur = c.impact.currency, brand = m.brand || DEFAULT_BRAND, logo = m.logo || SET.logo;
   const st = statementOf(c);
   const summary = (c.summary || "").trim() || autoSummary(c);
   const confPill = v => `<span class="pill ${v === "High" ? "green" : v === "Medium" ? "amber" : "red"}">${esc(v || "Not rated")}</span>`;
@@ -980,7 +1509,7 @@ function buildReport(c) {
   <div class="cover"><div><div class="k">Root Cause Analysis</div><h1>${esc(m.title || "Untitled event")}</h1>
     <dl><div><dt>Customer</dt><dd>${esc(m.customer || "–")}</dd></div><div><dt>Site</dt><dd>${esc(m.site || "–")}</dd></div><div><dt>Asset</dt><dd>${esc(m.asset || "–")}${m.assetDesc ? "<br><span style=\"font-weight:400;opacity:.85\">" + esc(m.assetDesc) + "</span>" : ""}</dd></div><div><dt>Event date</dt><dd>${fmtDate(m.eventDate) || "–"}</dd></div>
     <div><dt>Report ID</dt><dd>${esc(m.reportId)} rev ${esc(m.revision)}</dd></div><div><dt>Author</dt><dd>${esc(m.author || "–")}</dd></div><div><dt>Report date</dt><dd>${fmtDate(m.reportDate)}</dd></div></dl></div>
-    ${m.logo ? `<div class="logo"><img src="${m.logo}" alt="${esc(m.customer)} logo"></div>` : ""}</div>`;
+    ${logo ? `<div class="logo"><img src="${logo}" alt="Logo"></div>` : ""}</div>`;
   html += sec(nx(), "Executive summary", "", `<p>${esc(summary)}</p>
     <div class="tiles"><div class="tile amber"><div class="k">Downtime</div><div class="v">${fmtN(num(c.impact.downtimeHrs), 1)} h</div></div>
     <div class="tile red"><div class="k">Cost of failure</div><div class="v">${fmtMoney(k.total, cur)}</div></div>
@@ -1092,13 +1621,13 @@ function applyImport() {
 /* ---------- exports ---------- */
 async function offer(filename, data) {
   if (!S.downloads && STANDALONE) {
-    const blob = data instanceof Blob ? data : new Blob([data], { type: filename.endsWith(".html") ? "text/html" : filename.endsWith(".json") ? "application/json" : "application/octet-stream" });
+    const blob = data instanceof Blob ? data : new Blob([data], { type: filename.endsWith(".html") ? "text/html" : filename.endsWith(".json") ? "application/json" : filename.endsWith(".doc") ? "application/msword" : "application/octet-stream" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast("Saved " + filename); return;
   }
   if (!S.downloads) { toast("Downloads are not available in this view"); return; }
   try { await S.downloads.save({ filename, data }); toast("Saved " + filename); }
-  catch (e) { if (e && e.code === "declined") return; toast("Could not save the file (" + (e && e.code || "error") + ")"); }
+  catch (e) { if (e && e.code === "declined") return; if (e && e.code === "rejected_extension" && /\.doc$/.test(filename)) return offer(filename.replace(/\.doc$/, ".html"), data); toast("Could not save the file (" + (e && e.code || "error") + ")"); }
 }
 const safeName = s => String(s || "rca").replace(/[^A-Za-z0-9_\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 80) || "rca";
 function exportXlsx() {
@@ -1160,34 +1689,87 @@ function liveUpdate(k) {
   const c = S.cur;
   if (k.startsWith("impact.")) { const el = $("#live-cost"); if (el) el.innerHTML = costTiles(c); }
   if (k.startsWith("problem.")) { const el = $("#live-stmt"); if (el) el.innerHTML = stmtPreview(c); }
-  if (k === "meta.title") { const i = S.list.findIndex(x => x.id === c.id); if (i >= 0) S.list[i].title = c.meta.title || "Untitled RCA"; renderCaseSel(); }
+  if (k === "meta.title") { const h = $("#rcaTitle"); if (h) h.textContent = c.meta.title || "Untitled RCA"; }
   if (k === "meta.brand") { const sp = $("#f_brand + .mono"); if (sp) sp.textContent = c.meta.brand; }
   renderNav();
 }
-$("#main").addEventListener("input", e => {
+function setRcaStatus(c, st) {
+  c.status = st; c.closedAt = st === "Closed" ? (c.closedAt || todayISO()) : "";
+  touch(); rerender(); renderNavs();
+}
+document.addEventListener("input", e => {
   const t = e.target;
+  if (t.dataset.q) { S.q = t.value; $("#rlist").innerHTML = listBody(t.dataset.q); return; }
+  if (t.dataset.sk) { SET[t.dataset.sk] = t.value; saveSettings(); return; }
+  if (t.dataset.rk && S.edit) {
+    const r = recEdited(); r[t.dataset.rk] = t.value;
+    if (t.dataset.rk === "title") $("#sheetTitle").textContent = t.value || (S.edit.kind === "lessons" ? "New lesson" : "New safety alert");
+    const p = $("#saPrev"); if (p) p.innerHTML = alertHTML(r);
+    return;
+  }
+  if (!S.cur || !t.closest("#stepmain")) return;
   if (t.dataset.map) { S.pendingImport.map[t.dataset.map] = t.value; if (t.dataset.map === "asset") { const ct = assetCounts(S.pendingImport); S.pendingImport.asset = ct[0] ? ct[0][0] : ""; } rerender(); return; }
   if (t.dataset.mapasset) { S.pendingImport.asset = t.value; return; }
-  const k = t.dataset.k; if (!k || !S.cur) return;
-  let v = t.type === "checkbox" ? t.checked : t.value;
-  setPath(S.cur, k, v);
+  const k = t.dataset.k; if (!k) return;
+  setPath(S.cur, k, t.type === "checkbox" ? t.checked : t.value);
   if (/^fishbone\.\w+\.\d+\.text$/.test(k)) { const z = getPath(S.cur, k.replace(/\.text$/, "")); if (z && z.suggested) z.suggested = false; }
   touch();
-  if (t.dataset.rr || t.tagName === "SELECT" && t.dataset.rr) rerender(); else liveUpdate(k);
+  if (t.dataset.rr) rerender(); else liveUpdate(k);
 });
-$("#main").addEventListener("change", e => {
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "rcaStatus") { setRcaStatus(S.cur, t.value); return; }
+  if (!t.closest("#stepmain")) return;
   // redraw diagrams after a text field is committed
-  const k = e.target.dataset.k || ""; if (/^(timeline|fishbone)\./.test(k) || k === "meta.title") { const box = e.target.closest(".card")?.querySelector(".svg-box"); if (box) box.innerHTML = S.step === "timeline" ? timelineSVG(S.cur) : fishboneSVG(S.cur); }
-  if (k === "meta.asset" || k === "pcr.problem") renderNav();
+  const k = t.dataset.k || ""; if (/^(timeline|fishbone)\./.test(k) || k === "meta.title") { const box = t.closest(".card")?.querySelector(".svg-box"); if (box) box.innerHTML = S.step === "timeline" ? timelineSVG(S.cur) : fishboneSVG(S.cur); }
+  if (k === "meta.asset" || k === "pcr.problem" || /^capa\.\d+\.(status|due)$/.test(k)) { renderNav(); renderNavs(); }
 });
+function arm(b, text) { if (b.dataset.armed) return true; b.dataset.armed = "1"; b.classList.add("armed"); b.textContent = text; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.classList.remove("armed"); b.textContent = b.dataset.label || "Delete"; } }, 4000); return false; }
 document.addEventListener("click", e => {
+  if (e.target.classList && e.target.classList.contains("scrim")) { closeSheet(); return; }
   const b = e.target.closest("[data-act]"); if (!b) return;
+  if (b.tagName === "A") e.preventDefault();
   const c = S.cur, a = b.dataset.act, i = +b.dataset.i;
   const changed = () => { touch(); rerender(); };
+  const rec = () => S.edit && S.data[S.edit.kind][S.edit.id];
   switch (a) {
+    /* navigation and records */
+    case "nav": if (S.edit) { S.edit = null; renderSheet(); } if (b.dataset.f) S.filter.rcas = b.dataset.f; go(b.dataset.view); break;
+    case "jump": $("#" + b.dataset.to)?.scrollIntoView({ behavior: "smooth", block: "start" }); break;
+    case "filter": S.filter[b.dataset.key] = b.dataset.val; rerender(); break;
+    case "new-menu": S.edit = { kind: "menu" }; renderSheet(); break;
+    case "close-sheet": closeSheet(); break;
+    case "new-rca": case "new-case": if (S.edit) { S.edit = null; renderSheet(); } newCase(); toast("New RCA started"); break;
+    case "new-lesson": newRecord("lessons"); break;
+    case "new-alert": newRecord("alerts"); break;
+    case "open-rca": openRca(b.dataset.id, b.dataset.step); break;
+    case "open-lesson": openSheet("lessons", b.dataset.id); break;
+    case "open-alert": openSheet("alerts", b.dataset.id); break;
+    case "lesson-from-rca": newRecord("lessons", lessonFromCase(c)); break;
+    case "alert-from-rca": newRecord("alerts", alertFromCase(c)); break;
+    case "close-rca": { const n = openActions(c).length; if (n && !arm(b, n + " action" + (n > 1 ? "s" : "") + " still open. Close anyway?")) break; setRcaStatus(c, "Closed"); toast("RCA closed"); break; }
+    case "reopen-rca": setRcaStatus(c, c.capa.length ? "Actions open" : "In progress"); break;
+    case "del-rec": { if (!arm(b, "Click again to delete")) break; const ed = S.edit; S.edit = null; delRec(ed.kind, ed.id).then(() => { renderSheet(); rerender(); toast("Deleted"); }); break; }
+    /* lesson and alert outputs */
+    case "ll-bulletin": { const l = rec(); offer(safeName(l.ref + " lesson " + l.title) + ".html", lessonBulletin(l)); break; }
+    case "ll-print": { const d = new DOMParser().parseFromString(lessonBulletin(rec()), "text/html"); printHTML(d.querySelector("style").textContent.replace(/(^|[{}])\s*body\{/g, "$1#printArea{"), d.body.innerHTML); break; }
+    case "ll-xlsx": exportLessonsXlsx(); break;
+    case "photo-add": $("#filePhoto").click(); break;
+    case "photo-del": rec().photos.splice(i, 1); recEdited(); renderSheet(); break;
+    case "sa-copy": Promise.resolve().then(() => navigator.clipboard.writeText(alertText(rec()))).then(() => toast("Alert copied. Paste it into an email or message.")).catch(() => toast("Copying is blocked here. Use a download instead.")); break;
+    case "sa-word": offer(alertName(rec()) + ".doc", alertFile(rec(), true)); break;
+    case "sa-html": offer(alertName(rec()) + ".html", alertFile(rec(), false)); break;
+    case "sa-print": printHTML("@page{size:A4 landscape;margin:10mm}", alertHTML(rec())); break;
+    case "sa-issue": { const r = recEdited(); r.status = "Issued"; r.issuedAt = todayISO(); closeSheet(); toast(r.ref + " saved and marked issued"); break; }
+    case "sa-draft": { const r = recEdited(); r.status = "Draft"; r.issuedAt = ""; renderSheet(); break; }
+    /* settings and backup */
+    case "set-logo": $("#fileSetLogo").click(); break;
+    case "set-logo-clear": SET.logo = ""; saveSettings(); rerender(); break;
+    case "backup": offer(safeName(APP.name + " backup " + todayISO()) + ".json", backupJSON()); break;
+    case "add-examples": { const want = [["cases", exampleCase()], ["lessons", exampleLesson()], ["alerts", exampleAlert()]].filter(([k, r]) => !S.data[k][r.id]); want.forEach(([k, r]) => { S.data[k][r.id] = r; saveRec(k, r); }); rerender(); toast(want.length ? want.length + " example" + (want.length > 1 ? "s" : "") + " added" : "All the examples are already here"); break; }
+    /* RCA steps */
     case "go": S.step = b.dataset.step; render(); window.scrollTo(0, 0); break;
-    case "new-case": newCase(); toast("New case started"); break;
-    case "load-example": { const ex = S.list.find(x => x.id === "example-cv201"); if (ex) loadCase(ex.id); else newCase(exampleCase()); break; }
+    case "load-example": openRca("example-cv201"); break;
     case "delete-case": if (b.dataset.confirm) deleteCase(); else { b.dataset.confirm = "1"; b.textContent = "Click again to delete permanently"; b.style.color = "var(--red)"; } break;
     case "logo": $("#fileLogo").click(); break;
     case "logo-clear": c.meta.logo = ""; changed(); break;
@@ -1196,7 +1778,7 @@ document.addEventListener("click", e => {
     case "del": c[b.dataset.list].splice(i, 1); changed(); break;
     case "add-cause": c.fishbone[b.dataset.cat].push({ id: uid(), text: "", status: "candidate" }); changed(); setTimeout(() => { const ins = document.querySelectorAll(`[data-k^="fishbone.${b.dataset.cat}."][data-k$=".text"]`); ins[ins.length - 1]?.focus(); }, 0); break;
     case "fish-on": c.useFishbone = true; changed(); break;
-    case "fish-off": c.useFishbone = false; changed(); toast("Fishbone switched off for this case. Your causes are kept if you turn it back on."); break;
+    case "fish-off": c.useFishbone = false; changed(); toast("Fishbone switched off for this RCA. Your causes are kept if you turn it back on."); break;
     case "del-cause": c.fishbone[b.dataset.cat].splice(i, 1); changed(); break;
     case "add-chain": c.whys.push({ id: uid(), title: "Why did " + (c.meta.asset || "the asset") + " fail?", steps: [{ text: "", evidence: "" }] }); changed(); break;
     case "chain-from": c.whys.push({ id: uid(), title: "Path: " + b.dataset.text, steps: [{ text: b.dataset.text, evidence: "" }, { text: "", evidence: "" }] }); changed(); break;
@@ -1204,70 +1786,78 @@ document.addEventListener("click", e => {
     case "del-why": c.whys[i].steps.splice(+b.dataset.j, 1); changed(); break;
     case "promote": { const w = c.whys[i]; const last = [...w.steps].reverse().find(s => s.text); if (!last) { toast("Write the final why first"); break; } c.roots.push({ id: uid(), text: last.text, type: "Latent / systemic", evidence: last.evidence || "", confidence: last.evidence ? "Medium" : "Low" }); touch(); toast("Added to root causes (step 7)"); renderNav(); break; }
     case "roots-from-fish": { let n = 0; CATS.forEach(k => c.fishbone[k.k].filter(z => z.status === "root" && z.text && !c.roots.some(r => r.text === z.text)).forEach(z => { c.roots.push({ id: uid(), text: z.text, type: k.k === "Manpower" ? "Human" : k.k === "Machine" || k.k === "Material" ? "Physical" : "Latent / systemic", evidence: "", confidence: "Low" }); n++; })); toast(n ? n + " root causes added from the fishbone" : "No new fishbone root causes to add"); changed(); break; }
-    case "add-root": c.roots.push({ id: uid(), text: "", type: "Physical", evidence: "", confidence: "Medium" }); changed(); break;
-    case "add-capa": c.capa.push({ id: uid(), action: "", rootId: c.roots[0]?.id || "", type: "Administrative", mobj: "PM / maintenance plan", owner: "", due: "", check: "", status: "Proposed" }); changed(); break;
+    case "add-root": c.roots.push({ id: uid(), text: "", type: "Physical", evidence: "", confidence: "Medium" }); if (rcaStatus(c) === "Draft") c.status = "In progress"; changed(); break;
+    case "add-capa": c.capa.push({ id: uid(), action: "", rootId: c.roots[0]?.id || "", type: "Administrative", mobj: "PM / maintenance plan", owner: "", due: "", check: "", status: "Proposed" }); if (rcaStatus(c) === "Draft" || rcaStatus(c) === "In progress") c.status = "Actions open"; changed(); break;
     case "pick-wo": $("#fileWO").click(); break;
     case "apply-import": applyImport(); break;
     case "cancel-import": S.pendingImport = null; rerender(); break;
     case "clear-wos": c.wos = []; c.woSource = null; changed(); break;
     case "export-html": offer(safeName(c.meta.reportId + " " + c.meta.title) + ".html", reportDocument(c)); break;
     case "export-xlsx": exportXlsx(); break;
-    case "print": { const r = buildReport(c); $("#printArea").innerHTML = `<style>${r.css}</style>${r.html}`; setTimeout(() => window.print(), 50); break; }
+    case "print": { const r = buildReport(c); printHTML(r.css, r.html); break; }
     case "export-json": offer(safeName(c.meta.reportId + " case") + ".json", JSON.stringify(c, null, 2)); break;
     case "import-json": $("#fileJSON").click(); break;
     case "ai-fish": aiFish(); break;
     case "ai-sum": aiSum(); break;
   }
 });
-$("#casesel").addEventListener("change", e => { if (e.target.value === "__example") { S.pendingImport = null; S.ai = {}; newCase(exampleCase()); return; } if (e.target.value) { S.pendingImport = null; S.ai = {}; loadCase(e.target.value); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.edit) closeSheet(); });
 $("#fileWO").addEventListener("change", e => { const f = e.target.files[0]; if (f) readWOFile(f); e.target.value = ""; });
 $("#fileJSON").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-  try { const c = normalise(JSON.parse(await f.text())); if (!c.meta) throw 0; if (S.list.some(x => x.id === c.id)) c.id = uid(); c.example = false; newCase(c); toast("Opened " + f.name); }
-  catch (err) { toast("That file is not an RCA case file"); }
+  let j; try { j = JSON.parse(await f.text()); } catch (err) { toast("That file could not be read"); return; }
+  if (j && (j.format === "rootline-backup" || Array.isArray(j.cases))) { const n = await restoreBackup(j); rerender(); toast(n + " records restored from " + f.name); return; }
+  if (!j || !j.meta) { toast("That file is not an RCA case file or a backup"); return; }
+  const c = normalise(j); if (S.data.cases[c.id]) c.id = uid(); c.example = false; newCase(c); toast("Opened " + f.name);
 });
-$("#fileLogo").addEventListener("change", e => {
+$("#fileLogo").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-  const img = new Image(); const url = URL.createObjectURL(f);
-  img.onload = () => { const s = Math.min(1, 320 / img.width, 120 / img.height); const cv = document.createElement("canvas"); cv.width = Math.round(img.width * s); cv.height = Math.round(img.height * s); cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height); S.cur.meta.logo = cv.toDataURL("image/png"); URL.revokeObjectURL(url); touch(); rerender(); };
-  img.onerror = () => toast("That image could not be read");
-  img.src = url;
+  try { S.cur.meta.logo = await shrinkImage(f, 320, "image/png"); touch(); rerender(); } catch (err) { toast("That image could not be read"); }
 });
+$("#fileSetLogo").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try { SET.logo = await shrinkImage(f, 400, "image/png"); saveSettings(); rerender(); } catch (err) { toast("That image could not be read"); }
+});
+$("#filePhoto").addEventListener("change", e => { const fs = e.target.files; if (fs && fs.length && S.edit) addPhotos(fs); e.target.value = ""; });
+window.addEventListener("pagehide", flushSaves);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSaves(); });
 
 /* ---------- boot ---------- */
-$("#lists").innerHTML = Object.entries(LISTS).map(([id, items]) => `<datalist id="${id}">${items.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("");
 async function boot() {
-  // first paint from this browser, then light up shared storage
+  $("#lists").innerHTML = Object.entries(LISTS).map(([id, items]) => `<datalist id="${id}">${items.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("");
+  document.querySelector(".appname").innerHTML = MARK() + `<div>${APP.name}<span class="tag">${APP.tagline}</span></div>`;
   await localInit();
-  const all = LOCAL;
-  if (all && all.cases) S.list = Object.values(all.cases).map(c => ({ id: c.id, title: c.meta?.title || "Untitled RCA", updatedAt: c.updatedAt, example: !!c.example }));
-  if (all && all.last && all.cases[all.last]) S.cur = normalise(all.cases[all.last]);
-  else { S.cur = exampleCase(); }
-  if (!S.list.some(x => x.id === S.cur.id)) S.list.unshift({ id: S.cur.id, title: S.cur.meta.title, updatedAt: S.cur.updatedAt, example: !!S.cur.example });
-  render();
-  setSave("local", "Connecting…");
+  KINDS.forEach(k => Object.values(LOCAL[k]).forEach(r => { if (r && r.id) S.data[k][r.id] = NORM[k](r); }));
+  if (LOCAL.settings) Object.assign(SET, LOCAL.settings);
+  if (LOCAL.last && S.data.cases[LOCAL.last]) S.cur = S.data.cases[LOCAL.last];
   const cl = window.claude;
-  const [db, dl, sm] = await Promise.all([cl?.use?.("db") ?? null, cl?.use?.("downloads") ?? null, cl?.use?.("sample") ?? null].map(p => Promise.resolve(p).catch(() => null)));
+  if (!cl) { await seedExamples(); setSave("local", "Saved on this device"); render(); storageInfo(); return; }
+  setSave("busy", "Connecting…"); render();
+  const [db, dl, sm] = await Promise.all([cl.use?.("db") ?? null, cl.use?.("downloads") ?? null, cl.use?.("sample") ?? null].map(p => Promise.resolve(p).catch(() => null)));
   S.downloads = dl; S.sample = sm;
   if (db) {
     S.db = db;
     try {
-      const snap = await db.collection("cases").get();
-      const remote = snap.docs.map(d => d.data()).filter(Boolean);
-      const lsCases = LOCAL.cases;
-      // move any browser-only cases up to shared storage
-      for (const c of Object.values(lsCases)) { if (!remote.some(r => r.id === c.id)) { try { await db.doc("cases/" + c.id).set(c); remote.push(c); } catch (e) { } } }
-      S.list = remote.map(c => ({ id: c.id, title: c.meta?.title || "Untitled RCA", updatedAt: c.updatedAt, example: !!c.example }));
-      const lastId = LOCAL.last;
-      const pick = remote.find(c => c.id === lastId) || remote.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
-      if (pick) S.cur = normalise(pick);
-      else { S.list = [{ id: S.cur.id, title: S.cur.meta.title, updatedAt: S.cur.updatedAt, example: !!S.cur.example }]; await saveNow(); }
+      for (const k of KINDS) {
+        const remote = (await db.collection(k).get()).docs.map(d => d.data()).filter(r => r && r.id);
+        // move any records only saved in this browser up to the account
+        for (const r of Object.values(LOCAL[k])) if (!remote.some(x => x.id === r.id)) { try { await db.doc(k + "/" + r.id).set(r); remote.push(r); } catch (e) { } }
+        S.data[k] = {}; remote.forEach(r => { S.data[k][r.id] = NORM[k](r); });
+      }
+      const st = await db.doc("settings/app").get();
+      if (st.exists) Object.assign(SET, st.data()); else saveSettings();
+      S.cur = S.data.cases[LOCAL.last] || null;
       setSave("ok", "Saved");
     } catch (e) { console.warn(e); S.db = null; setSave("local", "Saved on this device"); }
   } else setSave("local", "Saved on this device");
+  await seedExamples();
   rerender();
 }
+async function storageInfo() {
+  try { const e = await navigator.storage?.estimate?.(); if (e && e.usage != null) { S.storageEst = (e.usage / 1048576).toFixed(1) + " MB of this device's storage"; if (S.view === "settings") rerender(); } } catch (err) { }
+}
 boot();
+
 </script>
 
 <script>
