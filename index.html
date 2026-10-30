@@ -157,6 +157,7 @@ main.view { min-width: 0; padding-block: 24px 48px; padding-left: max(18px, env(
 .sform { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; padding: 16px 18px }
 .fl { display: flex; flex-direction: column; gap: 5px; grid-column: 1 / -1; min-width: 0 }
 .fl.half { grid-column: auto }
+.fl.row { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px }
 .fl > span { font-size: 12.5px; color: var(--muted); font-weight: 600 }
 .fl input, .fl select, .fl textarea { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; min-height: 40px; width: 100%; min-width: 0 }
 .fl textarea { min-height: 84px; resize: vertical }
@@ -561,7 +562,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Rootline", tagline: "Find it. Fix it. For good.", version: "2.0.0", owner: "Daniel", year: 2026 };
+const APP = { name: "Rootline", tagline: "Find it. Fix it. For good.", version: "2.0.1", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -951,11 +952,35 @@ async function deleteCase() {
   await delRec("cases", c.id); S.cur = null; go("rcas"); toast("RCA deleted");
 }
 const AREA_OF = { "Production loss": "Production", "Safety": "Safety", "Environment": "Environment", "Quality": "Quality", "Cost only": "Cost" };
+/* Auto-generate a lesson from an RCA: the latent (systemic) root cause is the lesson, its action is what changes. */
+const CAT_OF = { "PM / maintenance plan": "Maintenance practice", "Job plan / task list": "Maintenance practice", "Condition monitoring trigger": "Maintenance practice", "Procedure / standard": "Procedures", "Design change / modification": "Design", "Training": "Training & competency", "Spares / stores change": "Spares & supply", "Failure code update": "Maintenance practice", "Maintenance strategy": "Management of change" };
 function lessonFromCase(c) {
-  const latent = c.roots.find(r => r.type === "Latent / systemic") || c.roots[0];
-  const act = latent && c.capa.find(a => a.rootId === latent.id);
-  const cost = costOf(c).total;
-  return { rcaId: c.id, asset: c.meta.asset, title: "", happened: statementOf(c), why: latent ? latent.text : "", action: act ? act.action : "", owner: act ? act.owner : "", due: act ? act.due : "", area: AREA_OF[c.impact.consequence] || "Production", severity: cost > 100000 ? "High" : cost > 10000 ? "Medium" : "Low" };
+  const latent = c.roots.find(r => r.type === "Latent / systemic") || c.roots.find(r => r.type === "Human") || c.roots[0];
+  const act = (latent && c.capa.find(a => a.rootId === latent.id)) || c.capa[0];
+  const cost = costOf(c).total, k = c.impact.currency;
+  const thing = c.meta.assetDesc || c.meta.asset || "The asset";
+  const sentence = s => s ? s.trim().replace(/\.?$/, ".").replace(/^./, ch => ch.toUpperCase()) : "";
+  return {
+    rcaId: c.id, asset: c.meta.assetDesc || c.meta.asset, date: todayISO(),
+    title: latent ? trunc(latent.text.split(/,\s*(?:which|so|because|and so)\b|;\s/)[0].replace(/\.$/, ""), 90) : c.meta.title ? "Lesson from " + c.meta.title : "",
+    happened: [statementOf(c), cost && !c.problem.impact ? "The cost of failure was " + fmtMoney(cost, k) + (num(c.impact.downtimeHrs) ? " with " + fmtN(num(c.impact.downtimeHrs), 1) + " hours of downtime." : ".") : ""].filter(Boolean).join(" "),
+    expected: thing + " should run reliably until its next planned maintenance, with any deterioration found and acted on before it fails.",
+    why: c.roots.map(r => r.type + ": " + sentence(r.text)).join("\n"),
+    lesson: latent ? sentence(latent.text) + (act ? " " + sentence(act.action) : "") : "",
+    category: (act && CAT_OF[act.mobj]) || "Maintenance practice",
+    polarity: "Negative", applies: latent && latent.type === "Latent / systemic" ? "Site-wide" : "Same asset class",
+    action: act ? act.action : "", owner: act ? act.owner : "", due: act ? act.due : "",
+    area: AREA_OF[c.impact.consequence] || "Production", severity: cost > 100000 ? "High" : cost > 10000 ? "Medium" : "Low"
+  };
+}
+async function aiLesson() {
+  const l = S.data.lessons[S.edit.id], c = S.data.cases[l.rcaId]; if (!c || !S.sample) return;
+  const btn = $("[data-act=ll-ai]"); if (btn) { btn.disabled = true; btn.textContent = "Drafting…"; }
+  try {
+    const j = await S.sample.json(`Write a lessons-learned entry from this root cause analysis, for a maintenance and reliability team. Plain, blame-free English, no em dashes, no invented facts. Return JSON exactly as {"title":"headline under 80 characters","happened":"2 to 3 sentences","expected":"1 sentence","why":"1 to 2 sentences on why it was different, focused on systems not people","lesson":"one sentence anyone can act on","action":"the specific change to a standard, procedure, PM, design or training"}.\n\n${caseBrief(c)}\nActions:\n${c.capa.map(a => "- " + a.action + " (" + a.mobj + ", " + a.owner + ", due " + a.due + ")").join("\n")}`, { modelTier: "default" });
+    ["title", "happened", "expected", "why", "lesson", "action"].forEach(k => { if (j && typeof j[k] === "string" && j[k].trim()) l[k] = j[k].trim(); });
+    recEdited(); renderSheet(); toast("Drafted by Claude from the RCA. Check it before sharing.");
+  } catch (e) { toast(e && e.code === "rate_limited" ? "Claude is busy. Try again in a minute." : "Could not draft the lesson this time."); if (btn) { btn.disabled = false; btn.textContent = "Draft with Claude"; } }
 }
 function alertFromCase(c) {
   const tl = [...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at))).filter(t => ["initiating", "failure", "response"].includes(t.kind) && t.text);
@@ -1010,6 +1035,7 @@ function lessonSheet(l) {
     ${rf(l, "title", "Lesson title", { ph: "Short headline, e.g. Job plan rewrites can drop OEM tasks", af: 1 })}
     ${rf(l, "date", "Date", { type: "date", half: 1 })}
     ${rf(l, "rcaId", "Linked RCA", { type: "select", options: rcaOptions(), half: 1 })}
+    ${l.rcaId && S.data.cases[l.rcaId] ? `<div class="fl row"><button class="btn sm" data-act="ll-fill">Fill from this RCA</button>${S.sample ? '<button class="btn sm" data-act="ll-ai">Draft with Claude</button>' : ""}<span class="note">Replaces the text below with details from the linked RCA.</span></div>` : ""}
     ${rf(l, "happened", "What happened", { type: "textarea" })}
     ${rf(l, "expected", "What was expected to happen", { type: "textarea", rows: 2 })}
     ${rf(l, "why", "Why it was different", { type: "textarea", rows: 2 })}
@@ -1705,6 +1731,7 @@ document.addEventListener("input", e => {
     const r = recEdited(); r[t.dataset.rk] = t.value;
     if (t.dataset.rk === "title") $("#sheetTitle").textContent = t.value || (S.edit.kind === "lessons" ? "New lesson" : "New safety alert");
     const p = $("#saPrev"); if (p) p.innerHTML = alertHTML(r);
+    if (t.dataset.rk === "rcaId" && S.edit.kind === "lessons") renderSheet();
     return;
   }
   if (!S.cur || !t.closest("#stepmain")) return;
@@ -1753,6 +1780,8 @@ document.addEventListener("click", e => {
     /* lesson and alert outputs */
     case "ll-bulletin": { const l = rec(); offer(safeName(l.ref + " lesson " + l.title) + ".html", lessonBulletin(l)); break; }
     case "ll-print": { const d = new DOMParser().parseFromString(lessonBulletin(rec()), "text/html"); printHTML(d.querySelector("style").textContent.replace(/(^|[{}])\s*body\{/g, "$1#printArea{"), d.body.innerHTML); break; }
+    case "ll-fill": { const r = rec(), c2 = S.data.cases[r.rcaId]; if (!c2) break; const f = lessonFromCase(c2); delete f.date; Object.assign(r, f); recEdited(); renderSheet(); toast("Filled from " + c2.meta.reportId); break; }
+    case "ll-ai": aiLesson(); break;
     case "ll-xlsx": exportLessonsXlsx(); break;
     case "photo-add": $("#filePhoto").click(); break;
     case "photo-del": rec().photos.splice(i, 1); recEdited(); renderSheet(); break;

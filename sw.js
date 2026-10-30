@@ -1,6 +1,6 @@
 // Rootline service worker: makes the app work offline.
 // On every release, change CACHE (e.g. "rca-v1.1.0") so installed apps pick up the new files.
-const CACHE = "rca-v2.0.0";
+const CACHE = "rca-v2.0.1";
 const SHELL = [
   "./",
   "index.html",
