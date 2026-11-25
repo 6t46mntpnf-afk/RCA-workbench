@@ -120,6 +120,82 @@ main.view { min-width: 0; padding-block: 24px 48px; padding-left: max(18px, env(
 .qa button.hot svg { color: var(--red) }
 .grid2 { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px }
 .grid2 > * { min-width: 0 }
+
+/* dashboard: icon tiles and charts (validated palette: copper, blue, teal) */
+:root { --s1: #B8622E; --s2: #2A6DC0; --s3: #009A80 }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --s1: #D08A5A; --s2: #5E9BE0; --s3: #2DB59A } }
+:root[data-theme="dark"] { --s1: #D08A5A; --s2: #5E9BE0; --s3: #2DB59A }
+.dhead { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between }
+.dhead h1 { margin: 0 }
+.qchips { display: flex; gap: 8px; flex-wrap: wrap }
+.qchip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 8px 14px 8px 10px; font-weight: 700; font-size: 13.5px; box-shadow: var(--shadow) }
+.qchip:hover { border-color: var(--accent) }
+.qchip .b { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent) }
+.qchip.hot .b { background: var(--red-soft); color: var(--red) }
+.qchip svg, .kpi .ico svg, .feed .ico svg, .ph2 svg { width: 18px; height: 18px }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
+.kpi { position: relative; background: var(--surface); border: 0; border-radius: 16px; padding: 16px; box-shadow: var(--shadow); text-align: left; color: var(--fg); display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow: hidden }
+.kpi:hover { background: var(--surface-2) }
+.kpi .top { display: flex; align-items: center; gap: 10px }
+.kpi .ico { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: none }
+.kpi .ico svg { width: 20px; height: 20px }
+.kpi.bad .ico { background: var(--red-soft); color: var(--red) }
+.kpi.good .ico { background: var(--green-soft); color: var(--green) }
+.kpi .k { font-size: 12.5px; font-weight: 600; color: var(--muted) }
+.kpi .row2 { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px }
+.kpi .v { font-weight: 800; letter-spacing: -.03em; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums }
+.kpi.bad .v { color: var(--red) }
+.kpi .s { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px }
+.kpi .s b { color: var(--fg) }
+.kpi .s svg { width: 14px; height: 14px; flex: none }
+.kpi .mini { width: 92px; height: 34px; flex: none }
+.kpi .ring { width: 44px; height: 44px; flex: none }
+.charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+.charts > * { min-width: 0 }
+.charts .w2 { grid-column: span 2 }
+.ph2 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-weight: 800; font-size: 15px; letter-spacing: -.01em }
+.ph2 .ib { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-2); color: var(--fg) }
+.ph2 .sub { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--muted) }
+.viz { display: block; width: 100%; height: auto; overflow: visible }
+.viz text { fill: var(--muted); font-size: 11px; font-family: var(--font) }
+.viz .grid { stroke: var(--hair); stroke-width: 1 }
+.viz .base { stroke: var(--line); stroke-width: 1 }
+.viz [data-tip] { cursor: default }
+.viz .hit { fill: transparent }
+.viz .hit:hover + .mk, .viz g.bar:hover .mk { opacity: .82 }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12.5px; color: var(--muted) }
+.legend span { display: inline-flex; align-items: center; gap: 6px }
+.legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--c) }
+.legend b { color: var(--fg); font-variant-numeric: tabular-nums }
+.legend svg { width: 14px; height: 14px; color: var(--c) }
+.donut { display: flex; align-items: center; gap: 16px; flex-wrap: wrap }
+.donut > svg { width: 140px; height: 140px; flex: none }
+.donut .legend { flex-direction: column; margin: 0 }
+.hb { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px }
+.hb .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; font-size: 13px }
+.hb .r .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600 }
+.hb .r .n { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 600 }
+.hb .r .tr { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden }
+.hb .r .tr i { display: block; height: 100%; border-radius: 4px; background: var(--s1) }
+.mix { display: flex; gap: 2px; height: 18px; border-radius: 6px; overflow: hidden; margin: 4px 0 2px }
+.mix i { display: block; height: 100%; background: var(--c); min-width: 4px }
+.feed { display: flex; flex-direction: column }
+.feed button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 0; border-bottom: 1px solid var(--hair); background: none; padding: 10px 2px; text-align: left; color: var(--fg); width: 100% }
+.feed button:last-child { border-bottom: 0 }
+.feed button:hover { background: var(--bg) }
+.feed .ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); color: var(--fg) }
+.feed .ico.red { background: var(--red-soft); color: var(--red) } .feed .ico.cu { background: var(--accent-soft); color: var(--accent) } .feed .ico.amber { background: var(--amber-soft); color: var(--amber) }
+.feed button > span:nth-child(2) { min-width: 0 }
+.feed .t, .feed .m { display: block }
+.feed .t { font-weight: 700; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.feed .m { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.feed .d { font-size: 12px; color: var(--muted); white-space: nowrap }
+.feed .d.over { color: var(--red); font-weight: 700 }
+.cempty { display: grid; place-items: center; text-align: center; min-height: 120px; color: var(--muted); font-size: 13px; border: 1px dashed var(--line); border-radius: 12px; padding: 12px }
+.vtip { position: fixed; z-index: 90; pointer-events: none; background: var(--solid); color: var(--solid-fg); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; line-height: 1.35; box-shadow: 0 6px 20px rgba(0,0,0,.18); max-width: 240px; opacity: 0; transition: opacity .1s }
+.vtip.on { opacity: 1 }
+@media (max-width: 980px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) } .charts { grid-template-columns: minmax(0, 1fr) } .charts .w2 { grid-column: auto } }
+@media (max-width: 560px) { .kpi { padding: 13px } .kpi .v { font-size: 26px } .kpi .mini { width: 64px } .qchip { padding: 7px 12px 7px 8px; font-size: 13px } }
 .panel { background: var(--surface); border-radius: 14px; padding: 16px; min-width: 0; box-shadow: var(--shadow) }
 .panel h2 { font-weight: 800; font-size: 15.5px; letter-spacing: -.01em; margin: 0 0 12px; display: flex; align-items: center; gap: 8px }
 .panel h2 .r { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 0 }
@@ -565,7 +641,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.2", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.4.0", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -574,7 +650,15 @@ const ICON = {
   bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>',
   alert: '<path d="M12 3.5l9 16.5H3z"/><path d="M12 10v4.5M12 17.4v.01"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>'
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
+  cash: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v.01M17.5 14.5v.01"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="M8 12.4l2.7 2.7L16 9.8"/>',
+  bars: '<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>',
+  pie: '<path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.3 5.2L4 16.9 7.1 20l5.4-5.4a4 4 0 0 0 5.2-5.3l-2.6 2.6-2.3-.6-.6-2.3z"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  pulse: '<path d="M3 12h4l2.5-6 4 12 2.5-6H21"/>'
 };
 const ic = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
 
@@ -835,30 +919,99 @@ function overdueRow(x) {
   return `<button class="lrow dot-red" data-act="open-rca" data-id="${esc(x.c.id)}" data-step="capa"><span class="t">${esc(trunc(x.a.action || "Action with no description", 110))}</span><span class="m"><span>${esc(x.c.meta.reportId)}</span>${x.a.owner ? `<span>${esc(x.a.owner)}</span>` : ""}<span class="over">Due ${fmtDate(x.due)}</span></span><span class="sr"><span class="pill grey">${esc(x.a.status)}</span></span></button>`;
 }
 
+/* ---------- dashboard charts (inline SVG, no libraries, works offline) ---------- */
+const fmtK = (n, cur) => { n = Math.round(n || 0); const a = Math.abs(n), p = cur || "$"; return a >= 1e6 ? p + fmtN(n / 1e6, a >= 1e7 ? 0 : 1) + "M" : a >= 1e4 ? p + fmtN(n / 1e3, 0) + "k" : p + fmtN(n); };
+const tipA = s => esc(s).replace(/\n/g, "&#10;");
+function monthsBack(n) { const d0 = new Date(), out = []; for (let i = n - 1; i >= 0; i--) { const d = new Date(d0.getFullYear(), d0.getMonth() - i, 1); out.push({ k: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), lab: MONTHS[d.getMonth()], y: d.getFullYear(), n: 0, cost: 0, hrs: 0 }); } return out; }
+function dashData() {
+  const cs = allCases(), t = todayISO(), months = monthsBack(12);
+  cs.forEach(c => { const m = months.find(x => x.k === String(c.meta.eventDate || c.createdAt || "").slice(0, 7)); if (m) { m.n++; m.cost += costOf(c).total; m.hrs += num(c.impact.downtimeHrs); } });
+  const act = { done: 0, open: 0, over: 0 };
+  cs.forEach(c => c.capa.forEach(a => { if (ACTION_DONE.includes(a.status)) act.done++; else if (a.due && a.due < t) act.over++; else act.open++; }));
+  const roots = ROOT_TYPES.map(k => ({ k, n: cs.reduce((s, c) => s + c.roots.filter(r => r.type === k && r.text).length, 0) }));
+  const am = {}; cs.forEach(c => { const k = c.meta.asset || c.meta.assetDesc; if (!k) return; const o = am[k] || (am[k] = { k, n: 0, cost: 0 }); o.n++; o.cost += costOf(c).total; });
+  const assets = Object.values(am).sort((a, b) => b.cost - a.cost || b.n - a.n).slice(0, 5);
+  const cm = {}; allLessons().forEach(l => { cm[l.category] = (cm[l.category] || 0) + 1; });
+  const cats = Object.entries(cm).map(([k, n]) => ({ k, n })).sort((a, b) => b.n - a.n).slice(0, 5);
+  const cur = (cs.find(c => c.impact.currency) || { impact: {} }).impact.currency || "$";
+  return { cs, months, act, roots, assets, cats, cur };
+}
+function vizColumns(ms, cur) {
+  const W = 600, H = 190, L = 28, B = 22, T = 10, max = Math.max(1, ...ms.map(m => m.n)), top = Math.max(2, Math.ceil(max / 2) * 2);
+  const bw = (W - L) / ms.length, w = Math.min(28, bw * .56), y = v => T + (H - T - B) * (1 - v / top);
+  let g = [0, top / 2, top].map(v => `<line class="grid" x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join("");
+  g += ms.map((m, i) => {
+    const x = L + bw * i + (bw - w) / 2, h = (H - T - B) * m.n / top, r = Math.min(4, h / 2), yb = H - B;
+    const bar = m.n ? `<path class="mk" fill="var(--s1)" d="M${x},${yb} V${yb - h + r} Q${x},${yb - h} ${x + r},${yb - h} H${x + w - r} Q${x + w},${yb - h} ${x + w},${yb - h + r} V${yb} Z"/>` : "";
+    const tip = `${m.lab} ${m.y}\n${m.n} RCA${m.n === 1 ? "" : "s"}${m.cost ? "\nCost of failure " + fmtMoney(m.cost, cur) : ""}${m.hrs ? "\n" + fmtN(m.hrs, 1) + " h downtime" : ""}`;
+    return `<g class="bar" data-tip="${tipA(tip)}"><rect class="hit" x="${L + bw * i}" y="${T}" width="${bw}" height="${H - T - B}"/>${bar}<text x="${x + w / 2}" y="${H - 6}" text-anchor="middle">${m.lab}</text></g>`;
+  }).join("");
+  return `<svg class="viz" viewBox="0 0 ${W} ${H}" role="img" aria-label="RCAs per month, last 12 months">${g}<line class="base" x1="${L}" x2="${W}" y1="${H - B}" y2="${H - B}"/></svg>`;
+}
+function vizSpark(vals) {
+  const W = 92, H = 34, max = Math.max(1, ...vals), n = vals.length, x = i => 2 + (W - 4) * i / Math.max(1, n - 1), y = v => H - 3 - (H - 8) * v / max;
+  const d = vals.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
+  return `<svg class="mini" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${d} L${x(n - 1)},${H} L${x(0)},${H} Z" fill="var(--accent-soft)"/><path d="${d}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(n - 1)}" cy="${y(vals[n - 1])}" r="3" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/></svg>`;
+}
+function vizRing(frac, col) {
+  const r = 18, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, frac || 0));
+  return `<svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--surface-2)" stroke-width="6"/><circle cx="22" cy="22" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/></svg>`;
+}
+function vizDonut(segs, centre, sub) {
+  const tot = segs.reduce((s, x) => s + x.n, 0), R = 52, SW = 16, C = 2 * Math.PI * R, gap = tot && segs.filter(s => s.n).length > 1 ? 3 : 0;
+  let off = 0;
+  const arcs = tot ? segs.filter(s => s.n).map(s => { const len = C * s.n / tot, a = `<circle cx="70" cy="70" r="${R}" fill="none" stroke="${s.c}" stroke-width="${SW}" stroke-dasharray="${Math.max(0, len - gap).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 70 70)" data-tip="${tipA(s.k + ": " + s.n + " (" + Math.round(100 * s.n / tot) + "%)")}"/>`; off += len; return a; }).join("") : "";
+  return `<div class="donut"><svg viewBox="0 0 140 140" role="img" aria-label="${esc(sub)}"><circle cx="70" cy="70" r="${R}" fill="none" stroke="var(--surface-2)" stroke-width="${SW}"/>${arcs}<text x="70" y="70" text-anchor="middle" style="font-size:26px;font-weight:800;fill:var(--fg)">${centre}</text><text x="70" y="90" text-anchor="middle">${esc(sub)}</text></svg>
+    <div class="legend">${segs.map(s => `<span style="--c:${s.c}">${ic(s.i)}${esc(s.k)} <b>${s.n}</b></span>`).join("")}</div></div>`;
+}
+const vizBars = (items, val, lab, tip) => { const max = Math.max(1, ...items.map(val)); return `<div class="hb">${items.map(it => `<div class="r" data-tip="${tipA(tip(it))}"><span class="l">${esc(it.k)}</span><span class="n">${lab(it)}</span><span class="tr"><i style="width:${Math.max(3, 100 * val(it) / max).toFixed(1)}%"></i></span></div>`).join("")}</div>`; };
+function vizMix(parts) {
+  const tot = parts.reduce((s, p) => s + p.n, 0);
+  if (!tot) return "";
+  return `<div class="mix" role="img" aria-label="${esc(parts.map(p => p.k + " " + p.n).join(", "))}">${parts.filter(p => p.n).map(p => `<i style="--c:${p.c};flex:${p.n}" data-tip="${tipA(p.k + ": " + p.n + " (" + Math.round(100 * p.n / tot) + "%)")}"></i>`).join("")}</div>
+  <div class="legend">${parts.map(p => `<span style="--c:${p.c}"><i></i>${esc(p.k)} <b>${p.n}</b> · ${Math.round(100 * p.n / tot)}%</span>`).join("")}</div>`;
+}
+function activityFeed() {
+  const items = [...allCases().map(c => ({ at: c.updatedAt, html: `<button data-act="open-rca" data-id="${esc(c.id)}"><span class="ico cu">${ic("rca")}</span><span><span class="t">${esc(c.meta.title || c.meta.reportId || "Untitled RCA")}</span><span class="m">${esc(c.meta.reportId)} · ${esc(rcaStatus(c))}</span></span>` })),
+    ...allLessons().map(l => ({ at: l.updatedAt, html: `<button data-act="open-lesson" data-id="${esc(l.id)}"><span class="ico amber">${ic("bulb")}</span><span><span class="t">${esc(l.title || "Untitled lesson")}</span><span class="m">${esc(l.ref)} · ${esc(l.status)}</span></span>` })),
+    ...allAlerts().map(a => ({ at: a.updatedAt, html: `<button data-act="open-alert" data-id="${esc(a.id)}"><span class="ico red">${ic("alert")}</span><span><span class="t">${esc(a.title || "Untitled alert")}</span><span class="m">${esc(a.ref)} · ${a.status === "Issued" ? "Issued" : "Draft"}</span></span>` }))]
+    .sort((a, b) => String(b.at || "").localeCompare(String(a.at || ""))).slice(0, 6);
+  return items.length ? `<div class="feed">${items.map(x => x.html + `<span class="d">${x.at ? fmtDate(x.at.slice(0, 10)) : ""}</span></button>`).join("")}</div>` : empty("Nothing yet", "Your RCAs, lessons and alerts show here as you work.");
+}
+function overdueFeed(od) {
+  return od.length ? `<div class="feed">${od.slice(0, 6).map(x => x.type === "lesson"
+    ? `<button data-act="open-lesson" data-id="${esc(x.l.id)}"><span class="ico red">${ic("clock")}</span><span><span class="t">${esc(trunc(x.l.action.split("\n")[0], 90))}</span><span class="m">${esc(x.l.ref)}${x.l.owner ? " · " + esc(x.l.owner) : ""}</span></span><span class="d over">${fmtDate(x.due)}</span></button>`
+    : `<button data-act="open-rca" data-id="${esc(x.c.id)}" data-step="capa"><span class="ico red">${ic("clock")}</span><span><span class="t">${esc(trunc(x.a.action || "Action with no description", 90))}</span><span class="m">${esc(x.c.meta.reportId)}${x.a.owner ? " · " + esc(x.a.owner) : ""}</span></span><span class="d over">${fmtDate(x.due)}</span></button>`).join("")}</div>${od.length > 6 ? `<p class="note" style="margin:8px 0 0">${od.length - 6} more overdue.</p>` : ""}`
+    : `<div class="cempty"><span>${ic("check")}<br><b>Nothing overdue</b><br>Every action is on track.</span></div>`;
+}
+
 const VIEWS = {
 dashboard() {
-  const cs = allCases(), open = cs.filter(isOpen), od = overdueActions(), ls = allLessons(), al = allAlerts();
-  const drafts = al.filter(a => a.status !== "Issued").length, notEmb = ls.filter(llOpen).length;
-  const h = new Date().getHours();
-  return `<div class="vhead"><div class="grow"><h1>${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}</h1><p class="lede">${fmtDate(todayISO())}${SET.company ? " · " + esc(SET.company) : ""}</p></div></div>
-  <div class="dtiles">
-    <button class="dtile" data-act="nav" data-view="rcas" data-f="open"><span class="k">Open RCAs</span><span class="v">${open.length}</span><span class="s">${cs.length - open.length} closed</span></button>
-    <button class="dtile" data-act="jump" data-to="pOverdue"><span class="k">Overdue actions</span><span class="v ${od.length ? "bad" : ""}">${od.length}</span><span class="s">${od.length ? "Chase these first" : "All on track"}</span></button>
-    <button class="dtile" data-act="nav" data-view="lessons"><span class="k">Lessons learned</span><span class="v">${ls.length}</span><span class="s">${notEmb} not yet embedded</span></button>
-    <button class="dtile" data-act="nav" data-view="alerts"><span class="k">Safety alerts</span><span class="v">${al.length}</span><span class="s">${drafts} draft${drafts === 1 ? "" : "s"}</span></button>
+  const D = dashData(), cs = D.cs, open = cs.filter(isOpen), od = overdueActions(), ls = allLessons(), al = allAlerts();
+  const emb = ls.filter(l => !llOpen(l)).length, drafts = al.filter(a => a.status !== "Issued").length;
+  const last6 = D.months.slice(-6).map(m => m.n), cost12 = D.months.reduce((s, m) => s + m.cost, 0), hrs12 = D.months.reduce((s, m) => s + m.hrs, 0);
+  const actTot = D.act.done + D.act.open + D.act.over, h = new Date().getHours();
+  const panel = (icon, title, sub, body, cls, id) => `<section class="panel ${cls || ""}"${id ? ` id="${id}"` : ""}><div class="ph2"><span class="ib">${ic(icon)}</span>${title}${sub ? `<span class="sub">${sub}</span>` : ""}</div>${body}</section>`;
+  return `<div class="dhead"><div><h1>${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}</h1><p class="lede" style="margin:4px 0 0">${fmtDate(todayISO())}${SET.company ? " · " + esc(SET.company) : ""}</p></div>
+    <div class="qchips"><button class="qchip" data-act="new-rca"><span class="b">${ic("rca")}</span>New RCA</button><button class="qchip" data-act="new-lesson"><span class="b">${ic("bulb")}</span>Lesson</button><button class="qchip hot" data-act="new-alert"><span class="b">${ic("alert")}</span>Safety alert</button></div></div>
+  <div class="kpis">
+    <button class="kpi" data-act="nav" data-view="rcas" data-f="open"><span class="top"><span class="ico">${ic("rca")}</span><span class="k">Open RCAs</span></span><span class="row2"><span class="v">${open.length}</span>${vizSpark(last6)}</span><span class="s"><b>${last6.reduce((a, b) => a + b, 0)}</b> new in 6 months</span></button>
+    <button class="kpi ${od.length ? "bad" : "good"}" data-act="jump" data-to="pOverdue"><span class="top"><span class="ico">${ic(od.length ? "clock" : "check")}</span><span class="k">Overdue actions</span></span><span class="row2"><span class="v">${od.length}</span>${vizRing(actTot ? D.act.done / actTot : 0, "var(--green)")}</span><span class="s"><b>${actTot ? Math.round(100 * D.act.done / actTot) : 0}%</b> of ${actTot} actions done</span></button>
+    <button class="kpi" data-act="jump" data-to="pTrend"><span class="top"><span class="ico">${ic("cash")}</span><span class="k">Cost of failure · 12 months</span></span><span class="row2"><span class="v">${fmtK(cost12, D.cur)}</span></span><span class="s"><b>${fmtN(hrs12, 0)} h</b> downtime</span></button>
+    <button class="kpi" data-act="nav" data-view="lessons"><span class="top"><span class="ico">${ic("bulb")}</span><span class="k">Lessons embedded</span></span><span class="row2"><span class="v">${emb}<span style="font-size:16px;color:var(--muted);font-weight:700"> / ${ls.length}</span></span>${vizRing(ls.length ? emb / ls.length : 0, "var(--s1)")}</span><span class="s">${ic("alert")}<b>${al.length}</b> alerts · ${drafts} draft${drafts === 1 ? "" : "s"}</span></button>
   </div>
-  <div class="qa">
-    <button data-act="new-rca">${ic("rca")}<span><b>Start an RCA</b><small>Guided 5 Whys, failure history and actions, with a customer report</small></span></button>
-    <button data-act="new-lesson">${ic("bulb")}<span><b>Capture a lesson</b><small>What happened, why it differed and what to change</small></span></button>
-    <button data-act="new-alert" class="hot">${ic("alert")}<span><b>Raise a safety alert</b><small>Your one-page alert layout, ready to print or send</small></span></button>
+  <div class="charts">
+    ${panel("bars", "RCAs per month", "Last 12 months", cs.length ? vizColumns(D.months, D.cur) : `<div class="cempty">Start an RCA and its month shows here.</div>`, "w2", "pTrend")}
+    ${panel("pie", "Action status", actTot + " actions", actTot ? vizDonut([{ k: "Done", n: D.act.done, c: "var(--green)", i: "check" }, { k: "Open", n: D.act.open, c: "var(--s2)", i: "pulse" }, { k: "Overdue", n: D.act.over, c: "var(--red)", i: "clock" }], (Math.round(100 * D.act.done / actTot)) + "%", "done") : `<div class="cempty">Actions from your RCAs show here.</div>`)}
+  </div>
+  <div class="charts">
+    ${panel("layers", "Root cause mix", D.roots.reduce((s, r) => s + r.n, 0) + " causes", D.roots.some(r => r.n) ? vizMix(D.roots.map((r, i) => ({ k: r.k === "Latent / systemic" ? "Latent" : r.k, n: r.n, c: `var(--s${i + 1})` }))) + `<p class="note" style="margin:12px 0 0">Latent causes are the system gaps that let failures repeat. Fixing them stops the next one.</p>` : `<div class="cempty">Root causes from your RCAs show here.</div>`)}
+    ${panel("wrench", "Bad actors", "Cost of failure", D.assets.length ? vizBars(D.assets, a => a.cost || a.n, a => a.cost ? fmtK(a.cost, D.cur) : a.n + " RCA" + (a.n === 1 ? "" : "s"), a => a.k + "\n" + a.n + " RCA" + (a.n === 1 ? "" : "s") + (a.cost ? "\n" + fmtMoney(a.cost, D.cur) : "")) : `<div class="cempty">Assets with RCAs show here.</div>`)}
+    ${panel("bulb", "Lessons by category", ls.length + " lessons", D.cats.length ? vizBars(D.cats, c => c.n, c => c.n, c => c.k + ": " + c.n + " lesson" + (c.n === 1 ? "" : "s")) : `<div class="cempty">Lessons show here by category.</div>`)}
   </div>
   <div class="grid2">
-    <section class="panel"><h2>Open RCAs <button class="r" data-act="nav" data-view="rcas">All RCAs</button></h2><div class="rlist">${open.slice(0, 6).map(rcaRow).join("") || empty("No open RCAs", "Start one when a failure needs a root cause.")}</div></section>
-    <section class="panel" id="pOverdue"><h2>Overdue actions</h2><div class="rlist">${od.slice(0, 8).map(overdueRow).join("") || empty("Nothing overdue", "RCA actions and lesson actions past their due date show here.")}</div>${od.length > 8 ? `<p class="note" style="margin:8px 0 0">${od.length - 8} more overdue.</p>` : ""}</section>
-  </div>
-  <div class="grid2">
-    <section class="panel"><h2>Recent lessons <button class="r" data-act="nav" data-view="lessons">All lessons</button></h2><div class="rlist">${ls.slice(0, 4).map(lessonRow).join("") || empty("No lessons yet", "Capture one from an RCA or on its own.")}</div></section>
-    <section class="panel"><h2>Recent safety alerts <button class="r" data-act="nav" data-view="alerts">All alerts</button></h2><div class="rlist">${al.slice(0, 4).map(alertRow).join("") || empty("No safety alerts yet", "Raise one to share an event with the crew.")}</div></section>
+    <section class="panel" id="pOverdue"><div class="ph2"><span class="ib">${ic("clock")}</span>Overdue actions${od.length ? `<span class="sub" style="color:var(--red)">${od.length} to chase</span>` : ""}</div>${overdueFeed(od)}</section>
+    <section class="panel"><div class="ph2"><span class="ib">${ic("pulse")}</span>Recent activity</div>${activityFeed()}</section>
   </div>`;
 },
 rcas() {
@@ -1988,6 +2141,14 @@ document.addEventListener("change", e => {
   if (k === "meta.asset" || k === "pcr.problem" || /^capa\.\d+\.(status|due)$/.test(k)) { renderNav(); renderNavs(); }
 });
 function arm(b, text) { if (b.dataset.armed) return true; b.dataset.armed = "1"; b.classList.add("armed"); b.textContent = text; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.classList.remove("armed"); b.textContent = b.dataset.label || "Delete"; } }, 4000); return false; }
+/* chart tooltips: hover on PC, tap on phone */
+(() => {
+  const tip = document.createElement("div"); tip.className = "vtip"; tip.setAttribute("role", "status"); document.body.appendChild(tip);
+  const show = (el, x, y) => { tip.textContent = ""; el.getAttribute("data-tip").split("\n").forEach((ln, i) => { const d = document.createElement(i ? "div" : "b"); d.textContent = ln; d.style.display = "block"; tip.appendChild(d); }); tip.classList.add("on"); const r = tip.getBoundingClientRect(); tip.style.left = Math.max(8, Math.min(innerWidth - r.width - 8, x + 12)) + "px"; tip.style.top = Math.max(8, y - r.height - 12) + "px"; };
+  document.addEventListener("pointermove", e => { const el = e.target.closest && e.target.closest("[data-tip]"); if (el) show(el, e.clientX, e.clientY); else tip.classList.remove("on"); }, { passive: true });
+  document.addEventListener("pointerdown", e => { const el = e.target.closest && e.target.closest("[data-tip]"); if (el && e.pointerType !== "mouse") show(el, e.clientX, e.clientY); });
+  document.addEventListener("scroll", () => tip.classList.remove("on"), { passive: true, capture: true });
+})();
 document.addEventListener("click", e => {
   if (e.target.classList && e.target.classList.contains("scrim")) { closeSheet(); return; }
   const b = e.target.closest("[data-act]"); if (!b) return;
