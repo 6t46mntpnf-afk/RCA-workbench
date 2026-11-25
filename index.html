@@ -564,7 +564,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.1.0", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.1.1", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -902,7 +902,7 @@ settings() {
     <div class="f"><span>Logo</span><div class="row">${SET.logo ? `<img src="${SET.logo}" alt="Company logo" style="height:36px;max-width:160px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:6px;padding:2px">` : ""}<button class="btn sm" data-act="set-logo">${SET.logo ? "Replace" : "Upload logo"}</button>${SET.logo ? '<button class="btn sm ghost" data-act="set-logo-clear">Remove</button>' : ""}</div></div>
   </div></section>
   <section class="panel"><h2>Lessons slide template</h2>
-    <p class="note" style="margin:0 0 12px;max-width:72ch">Lessons export to PowerPoint in your own template: slide 1 is the cover, slide 2 is the lesson layout (title, three boxes and a photo). The template is kept on this device only, so load it once on each device you use.</p>
+    <p class="note" style="margin:0 0 12px;max-width:72ch">Lessons export to PowerPoint in your own template: slide 1 is the cover, slide 2 is the lesson layout (title, three boxes and a photo), and an optional last slide closes the deck. The template is kept on this device only, so load it once on each device you use.</p>
     <div class="row">${LTPL ? `<span class="pill green">Loaded</span><span>${esc(LTPL.name)}</span><button class="btn sm" data-act="tpl-add">Replace</button><button class="btn sm ghost" data-act="tpl-clear">Remove</button>` : `<span class="pill grey">No template yet</span><button class="btn sm pri" data-act="tpl-add">Load template (.pptx)</button>`}</div></section>
   <section class="panel"><h2>Backup and restore</h2>
     <p class="note" style="margin:0 0 12px;max-width:72ch">${STANDALONE ? "Everything is saved in this browser on this device (IndexedDB). It does not sync between devices. Download a backup regularly, and use it to move your records to another device." : "Inside Claude, records are saved to your Claude account and sync between your devices. The installed app keeps its own records on each device; move them across with a backup."}${est ? ` Using ${est}.` : ""}</p>
@@ -1174,8 +1174,9 @@ async function lessonSlides(list, filename) {
   const relsOf = p => p.replace(/([^/]+)$/, "_rels/$1.rels");
   const sldIds = all(pres.documentElement, "p", "sldId");
   const coverPath = target(sldIds[0].getAttributeNS(NS.r, "id")), lessonPath = target(sldIds[1].getAttributeNS(NS.r, "id"));
-  // drop any slides after the first two
-  for (const el of sldIds.slice(2)) {
+  // keep a closing slide (the template's last slide, when it has three or more); drop any slides in between
+  const closing = sldIds.length > 2 ? sldIds[sldIds.length - 1] : null;
+  for (const el of sldIds.slice(2, closing ? -1 : undefined)) {
     const id = el.getAttributeNS(NS.r, "id"), p = target(id);
     el.remove(); rels.find(r => r.getAttribute("Id") === id).remove(); z.remove(p); z.remove(relsOf(p));
     all(ct.documentElement, "ct", "Override").filter(o => o.getAttribute("PartName") === "/" + p).forEach(o => o.remove());
@@ -1254,7 +1255,7 @@ async function lessonSlides(list, filename) {
     if (i > 0) {
       const o = ct.createElementNS(NS.ct, "Override"); o.setAttribute("PartName", "/" + path); o.setAttribute("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"); ct.documentElement.appendChild(o);
       const rid = "rIdLesson" + i, r = presRels.createElementNS(NS.pr, "Relationship"); r.setAttribute("Id", rid); r.setAttribute("Type", SLIDE_T); r.setAttribute("Target", "slides/slide" + (ns + i) + ".xml"); presRels.documentElement.appendChild(r);
-      const s = pres.createElementNS(NS.p, "p:sldId"); s.setAttribute("id", String(++maxSld)); s.setAttributeNS(NS.r, "r:id", rid); lst.appendChild(s);
+      const s = pres.createElementNS(NS.p, "p:sldId"); s.setAttribute("id", String(++maxSld)); s.setAttributeNS(NS.r, "r:id", rid); lst.insertBefore(s, closing);
     }
   }
   z.file("ppt/presentation.xml", ser(pres)); z.file("ppt/_rels/presentation.xml.rels", ser(presRels)); z.file("[Content_Types].xml", ser(ct));

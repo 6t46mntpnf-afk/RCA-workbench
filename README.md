@@ -16,7 +16,7 @@ Root cause analysis, lessons learned and safety alerts in one app. It opens on a
   9. Customer report (HTML, print to PDF, Excel, case file)
 
   Each RCA has a status (Draft, In progress, Actions open, Closed).
-- **Lessons learned** record what happened, what was expected, why it differed, the lesson, its category, impact, applicability, action and status (Open, In progress, Embedded, Verified). Exports are PowerPoint slides in your own lessons template (cover plus one slide per lesson, with a photo), a one-page bulletin and an Excel register. Load the template once per device in **Settings › Lessons slide template**; it is stored on the device only, so a company-branded template never goes into this repository.
+- **Lessons learned** record what happened, what was expected, why it differed, the lesson, its category, impact, applicability, action and status (Open, In progress, Embedded, Verified). Exports are PowerPoint slides in your own lessons template (cover, one slide per lesson with a photo, and an optional closing slide), a one-page bulletin and an Excel register. Load the template once per device in **Settings › Lessons slide template**; it is stored on the device only, so a company-branded template never goes into this repository.
 - **Safety alerts** use Daniel's one-page client layout:
   - critical risk
   - potential and actual consequence
