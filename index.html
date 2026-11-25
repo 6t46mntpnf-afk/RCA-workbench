@@ -323,6 +323,7 @@ table.t tr.hl td { background: var(--red-soft) }
 <input type="file" id="fileLogo" accept="image/*" hidden>
 <input type="file" id="fileSetLogo" accept="image/*" hidden>
 <input type="file" id="filePhoto" accept="image/*" multiple hidden>
+<input type="file" id="fileVid" accept="video/*" hidden>
 <input type="file" id="fileTpl" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
 <div id="toast" class="toast" hidden></div>
 <div id="lists" hidden></div>
@@ -564,7 +565,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.1.1", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.2.0", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -752,7 +753,7 @@ function nextRef(kind, pre) {
 }
 function blankLesson() {
   const now = new Date().toISOString();
-  return { id: uid(), ref: "", title: "", date: todayISO(), rcaId: "", asset: "", happened: "", expected: "", why: "", lesson: "", photo: "", category: "Maintenance practice", polarity: "Negative", area: "Production", severity: "Medium", applies: "Same asset class", action: "", owner: "", due: "", status: "Open", createdAt: now, updatedAt: now, example: false };
+  return { id: uid(), ref: "", title: "", date: todayISO(), rcaId: "", srcRca: "", srcBy: "", asset: "", happened: "", expected: "", why: "", lesson: "", photo: "", category: "Maintenance practice", polarity: "Negative", area: "Production", severity: "Medium", applies: "Same asset class", action: "", owner: "", due: "", status: "Open", createdAt: now, updatedAt: now, example: false };
 }
 function blankAlert() {
   const now = new Date().toISOString();
@@ -991,6 +992,58 @@ async function aiLesson() {
     recEdited(); renderSheet(); toast("Drafted by Claude from the RCA. Check it before sharing.");
   } catch (e) { toast(e && e.code === "rate_limited" ? "Claude is busy. Try again in a minute." : "Could not draft the lesson this time."); if (btn) { btn.disabled = false; btn.textContent = "Draft with Claude"; } }
 }
+/* draft a lesson from a short screen recording: pick distinct frames in the browser, then Claude reads them */
+async function videoFrames(file, max, onStep) {
+  const url = URL.createObjectURL(file), v = document.createElement("video");
+  v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url;
+  try {
+    await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error("video")); setTimeout(() => rej(new Error("timeout")), 30000); });
+    const d = v.duration; if (!isFinite(d) || d <= 0 || !v.videoWidth) throw new Error("length");
+    const W = Math.min(1600, v.videoWidth), H = Math.round(v.videoHeight * W / v.videoWidth);
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const cx = cv.getContext("2d");
+    const sm = document.createElement("canvas"); sm.width = 48; sm.height = 27; const sx = sm.getContext("2d", { willReadFrequently: true });
+    const n = Math.min(60, Math.max(max, Math.ceil(d / 1.5)));
+    const seek = t => new Promise(res => { let ok = false; const done = () => { if (ok) return; ok = true; v.removeEventListener("seeked", done); res(); }; v.addEventListener("seeked", done); v.currentTime = t; setTimeout(done, 5000); });
+    const keep = []; let prev = null;
+    for (let i = 0; i < n; i++) {
+      await seek(Math.min(d - 0.05, d * (i + 0.5) / n)); if (onStep) onStep(i + 1, n);
+      sx.drawImage(v, 0, 0, 48, 27); const px = sx.getImageData(0, 0, 48, 27).data;
+      let diff = 0; if (prev) for (let k = 0; k < px.length; k += 4) diff += Math.abs(px[k] - prev[k]) + Math.abs(px[k + 1] - prev[k + 1]) + Math.abs(px[k + 2] - prev[k + 2]);
+      if (!prev || diff / (48 * 27 * 3) > 3) { cx.drawImage(v, 0, 0, W, H); const b = await new Promise(r => cv.toBlob(r, "image/jpeg", .85)); if (b) keep.push(b); prev = px; }
+    }
+    if (keep.length <= max) return keep;
+    return Array.from({ length: max }, (_, i) => keep[Math.round(i * (keep.length - 1) / Math.max(1, max - 1))]);
+  } finally { URL.revokeObjectURL(url); }
+}
+async function aiLessonVideo(file) {
+  const l = S.edit && S.edit.kind === "lessons" && S.data.lessons[S.edit.id]; if (!l || !S.sample || !S.imgMax || S.vidBusy) return;
+  const busy = t => { S.vidBusy = t; const b = $("[data-act=ll-video]"); if (b) { b.disabled = !!t; b.textContent = t || "Draft from a video"; } };
+  try {
+    busy("Reading video…");
+    const frames = await videoFrames(file, Math.max(2, Math.min(S.imgMax, 20)), (i, n) => busy("Reading video " + Math.round(i / n * 100) + "%"));
+    if (!frames.length) throw new Error("frames");
+    busy("Claude is drafting…");
+    const j = await S.sample.json(`These ${frames.length} images are frames, in time order, from a short screen recording of a root cause analysis (RCA) record in a company's maintenance work system. Read everything visible in them and write a lessons-learned entry for a maintenance and reliability team. Use only facts shown in the frames: never invent names, numbers or dates, and leave a field empty when it is not shown. Plain, blame-free New Zealand English, no em dashes.
+Return JSON exactly as {"rca":"the RCA number as shown, e.g. RCA 320, or empty","preparedBy":"who prepared or led the RCA, or empty","date":"date of the event as YYYY-MM-DD, or empty","title":"short headline of the event, without the RCA number","happened":"What went wrong: 2 to 4 sentences on what happened, where and when, and the consequence","expected":"one sentence on what should have happened","why":["Why did it happen: one entry per 5 Whys step, each written as the question then the answer, then a last entry starting 'Root cause: '"],"lesson":"Learning and improvements: 1 to 3 sentences anyone can act on","actions":[{"action":"each corrective or preventive action shown","owner":"or empty","due":"YYYY-MM-DD or empty"}]}`, { images: frames, modelTier: "complex" });
+    if (!j || typeof j !== "object") throw new Error("empty");
+    const str = v => typeof v === "string" ? v.trim() : "", iso = v => /^\d{4}-\d{2}-\d{2}$/.test(str(v)) ? str(v) : "";
+    const set = (k, v) => { if (v) l[k] = v; };
+    set("srcRca", str(j.rca)); set("srcBy", str(j.preparedBy)); set("date", iso(j.date)); set("title", str(j.title));
+    set("happened", str(j.happened)); set("expected", str(j.expected)); set("lesson", str(j.lesson));
+    set("why", (Array.isArray(j.why) ? j.why : [j.why]).map(str).filter(Boolean).join("\n"));
+    const acts = (Array.isArray(j.actions) ? j.actions : []).filter(a => a && str(a.action));
+    if (acts.length) {
+      l.action = acts.map(a => str(a.action).replace(/\.$/, "")).join("; ");
+      l.owner = [...new Set(acts.map(a => str(a.owner)).filter(Boolean))].join(", ");
+      l.due = acts.map(a => iso(a.due)).filter(Boolean).sort().pop() || l.due;
+    }
+    delete l.pristine; touch("lessons", l);
+    toast("Drafted by Claude from the video. Check it before sharing.");
+  } catch (e) {
+    const code = e && e.code;
+    toast(code === "rate_limited" ? "Claude is busy. Try again in a minute." : code === "not_granted" ? "Claude was not allowed to read the video." : code === "cancelled" ? "Stopped." : e && /video|length|timeout|frames/.test(e.message || "") ? "That video could not be read. Try an .mp4 or .mov screen recording." : "Could not draft the lesson from that video.");
+  } finally { S.vidBusy = ""; if (S.edit && S.edit.id === l.id) renderSheet(); }
+}
 function alertFromCase(c) {
   const tl = [...c.timeline].sort((a, b) => String(a.at).localeCompare(String(b.at))).filter(t => ["initiating", "failure", "response"].includes(t.kind) && t.text);
   return { rcaId: c.id, title: c.meta.title, date: c.meta.eventDate || todayISO(), location: [c.meta.site, c.meta.location].filter(Boolean).join(", "), what: [statementOf(c), ...tl.map(t => fmtDT(t.at) + ": " + t.text.replace(/\.?$/, "."))].filter(Boolean).join("\n"), contact: SET.contact || c.meta.author || "" };
@@ -1045,6 +1098,8 @@ function lessonSheet(l) {
     ${rf(l, "date", "Date", { type: "date", half: 1 })}
     ${rf(l, "rcaId", "Linked RCA", { type: "select", options: rcaOptions(), half: 1 })}
     ${l.rcaId && S.data.cases[l.rcaId] ? `<div class="fl row"><button class="btn sm" data-act="ll-fill">Fill from this RCA</button>${S.sample ? '<button class="btn sm" data-act="ll-ai">Draft with Claude</button>' : ""}<span class="note">Replaces the text below with details from the linked RCA.</span></div>` : ""}
+    ${S.sample && S.imgMax ? `<div class="fl row"><button class="btn sm" data-act="ll-video" ${S.vidBusy ? "disabled" : ""}>${esc(S.vidBusy || "Draft from a video")}</button><span class="note">Pick a short screen recording of an RCA in your work system. Claude reads it and fills in the lesson below, replacing what is there.</span></div>` : STANDALONE ? `<div class="fl"><span class="note">Drafting a lesson from a video works in the Claude version of the app.</span></div>` : ""}
+    ${l.rcaId ? "" : rf(l, "srcRca", "RCA number (from your work system)", { ph: "e.g. RCA 320", half: 1 }) + rf(l, "srcBy", "RCA prepared by", { half: 1 })}
     ${rf(l, "happened", "1 What went wrong?", { type: "textarea" })}
     ${rf(l, "why", "2 Why did it happen? (one point per line, e.g. your 5 Whys)", { type: "textarea", rows: 5 })}
     ${rf(l, "lesson", "3 Learning and improvements (the lesson anyone can act on)", { type: "textarea", rows: 3 })}
@@ -1155,7 +1210,7 @@ function lessonSections(l) {
   const act = l.action ? "Action: " + l.action.replace(/\.?$/, ".") + [l.owner && " Owner: " + l.owner + ".", l.due && " Due: " + fmtDate(l.due) + "."].filter(Boolean).join("") : "";
   return [lines(l.happened), lines(l.why), [...lines(l.lesson), act].filter(Boolean)];
 }
-const lessonSlideTitle = l => { const r = caseRef(l.rcaId); return (r ? r + " – " : "") + (l.title || "Untitled lesson"); };
+const lessonSlideTitle = l => { const r = caseRef(l.rcaId) || (l.srcRca && !String(l.title || "").toLowerCase().startsWith(l.srcRca.toLowerCase()) ? l.srcRca : ""); return (r ? r + " – " : "") + (l.title || "Untitled lesson"); };
 const imgSize = src => new Promise(res => { const i = new Image(); i.onload = () => res([i.naturalWidth, i.naturalHeight]); i.onerror = () => res([4, 3]); i.src = src; });
 async function lessonSlides(list, filename) {
   if (!list.length) { toast("No lessons to export"); return; }
@@ -1208,7 +1263,7 @@ async function lessonSlides(list, filename) {
   const label = cshapes.find(sp => /prepared/i.test(txt(sp)));
   const below = cshapes.filter(sp => sp !== label && sp !== dt && phType(sp) !== "title" && phType(sp) !== "ctrTitle" && label && off(sp) > off(label)).sort((a, b) => off(a) - off(b))[0];
   if (below) {
-    const by = [...new Set(list.map(l => { const c = S.data.cases[l.rcaId]; return c ? c.meta.reportId + ": " + (c.meta.author || "–") : l.ref + (l.owner ? ": " + l.owner : ""); }))];
+    const by = [...new Set(list.map(l => { const c = S.data.cases[l.rcaId]; return c ? c.meta.reportId + ": " + (c.meta.author || "–") : l.srcRca ? l.srcRca + ": " + (l.srcBy || "–") : l.ref + (l.owner ? ": " + l.owner : ""); }))];
     setLines(below, by, false);
   }
   z.file(coverPath, ser(cover));
@@ -1929,6 +1984,7 @@ document.addEventListener("click", e => {
     case "ll-xlsx": exportLessonsXlsx(); break;
     case "ll-pptx": { const l = rec(); flushSaves(); lessonSlides([l], safeName(l.ref + " lesson " + l.title) + ".pptx"); break; }
     case "ll-pptx-all": lessonSlides(lessonsShown(), "Lessons-learned-" + todayISO() + ".pptx"); break;
+    case "ll-video": $("#fileVid").click(); break;
     case "ll-photo-del": rec().photo = ""; recEdited(); renderSheet(); break;
     case "tpl-add": $("#fileTpl").click(); break;
     case "tpl-clear": tplClear(); break;
@@ -1996,6 +2052,7 @@ $("#fileSetLogo").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   try { SET.logo = await shrinkImage(f, 400, "image/png"); saveSettings(); rerender(); } catch (err) { toast("That image could not be read"); }
 });
+$("#fileVid").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) aiLessonVideo(f); });
 $("#fileTpl").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) tplAdd(f); });
 $("#filePhoto").addEventListener("change", e => { const fs = e.target.files; if (fs && fs.length && S.edit) addPhotos(fs); e.target.value = ""; });
 window.addEventListener("pagehide", flushSaves);
@@ -2015,6 +2072,7 @@ async function boot() {
   setSave("busy", "Connecting…"); render();
   const [db, dl, sm] = await Promise.all([cl.use?.("db") ?? null, cl.use?.("downloads") ?? null, cl.use?.("sample") ?? null].map(p => Promise.resolve(p).catch(() => null)));
   S.downloads = dl; S.sample = sm;
+  if (sm && sm.limits) { try { const lim = await sm.limits(); S.imgMax = lim && lim.images ? lim.images.maxCount : 0; } catch (e) { S.imgMax = 0; } }
   if (db) {
     S.db = db;
     try {
