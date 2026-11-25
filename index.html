@@ -565,7 +565,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.2.0", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.0", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -975,20 +975,35 @@ function lessonFromCase(c) {
     title: latent ? trunc(latent.text.split(/,\s*(?:which|so|because|and so)\b|;\s/)[0].replace(/\.$/, ""), 90) : c.meta.title ? "Lesson from " + c.meta.title : "",
     happened: [statementOf(c), cost && !c.problem.impact ? "The cost of failure was " + fmtMoney(cost, k) + (num(c.impact.downtimeHrs) ? " with " + fmtN(num(c.impact.downtimeHrs), 1) + " hours of downtime." : ".") : ""].filter(Boolean).join(" "),
     expected: thing + " should run reliably until its next planned maintenance, with any deterioration found and acted on before it fails.",
-    why: (c.whys.find(w => w.steps.some(x => x.text)) ? c.whys.find(w => w.steps.some(x => x.text)).steps.filter(x => x.text).map(x => sentence(x.text)) : c.roots.map(r => r.type + ": " + sentence(r.text))).concat(latent && c.whys.length ? ["Root cause: " + sentence(latent.text)] : []).join("\n"),
+    why: c.roots.some(r => r.text) ? [...c.roots.filter(r => r.text && r.type === "Physical").map(r => "Direct cause: " + sentence(r.text)), ...c.roots.filter(r => r.text && r.type === "Human").map(r => "Contributing factor: " + sentence(r.text)), ...c.roots.filter(r => r.text && r.type === "Latent / systemic").map(r => "Root cause: " + sentence(r.text))].join("\n") : (c.whys.find(w => w.steps.some(x => x.text)) ? c.whys.find(w => w.steps.some(x => x.text)).steps.filter(x => x.text).map(x => sentence(x.text)) : c.roots.map(r => r.type + ": " + sentence(r.text))).concat(latent && c.whys.length ? ["Root cause: " + sentence(latent.text)] : []).join("\n"),
     lesson: latent ? sentence(latent.text) : "",
     category: (act && CAT_OF[act.mobj]) || "Maintenance practice",
     polarity: "Negative", applies: latent && latent.type === "Latent / systemic" ? "Site-wide" : "Same asset class",
-    action: act ? act.action : "", owner: act ? act.owner : "", due: act ? act.due : "",
+    action: c.capa.filter(a => a.action).map(fmtActionLine).join("\n"), owner: act ? act.owner : "", due: act ? act.due : "",
     area: AREA_OF[c.impact.consequence] || "Production", severity: cost > 100000 ? "High" : cost > 10000 ? "Medium" : "Low"
   };
+}
+const LL_WHY_RULES = "Keep every point short (under 30 words), factual and blame-free; summarise, do not copy whole paragraphs.";
+function fmtActionLine(a) { const s = v => typeof v === "string" ? v.trim() : ""; const bits = [s(a.owner), /^\d{4}-\d{2}-\d{2}$/.test(s(a.due)) ? "due " + fmtDate(s(a.due)) : ""].filter(Boolean); return s(a.action).replace(/\.$/, "") + (bits.length ? " (" + bits.join(", ") + ")" : ""); }
+function applyDraft(l, j) {
+  if (!j || typeof j !== "object") throw new Error("empty");
+  const str = v => typeof v === "string" ? v.trim() : "", iso = v => /^\d{4}-\d{2}-\d{2}$/.test(str(v)) ? str(v) : "", set = (k, v) => { if (v) l[k] = v; };
+  set("srcRca", str(j.rca)); set("srcBy", str(j.preparedBy)); set("date", iso(j.date)); set("title", str(j.title));
+  set("happened", str(j.happened)); set("expected", str(j.expected)); set("lesson", str(j.lesson));
+  set("why", (Array.isArray(j.why) ? j.why : [j.why]).map(str).filter(Boolean).join("\n"));
+  const acts = (Array.isArray(j.actions) ? j.actions : []).filter(a => a && str(a.action));
+  if (acts.length) {
+    l.action = acts.map(fmtActionLine).join("\n");
+    l.owner = str(acts[0].owner) || l.owner;
+    l.due = acts.map(a => iso(a.due)).filter(Boolean).sort().pop() || l.due;
+  }
 }
 async function aiLesson() {
   const l = S.data.lessons[S.edit.id], c = S.data.cases[l.rcaId]; if (!c || !S.sample) return;
   const btn = $("[data-act=ll-ai]"); if (btn) { btn.disabled = true; btn.textContent = "Drafting…"; }
   try {
-    const j = await S.sample.json(`Write a lessons-learned entry from this root cause analysis, for a maintenance and reliability team. Plain, blame-free English, no em dashes, no invented facts. Return JSON exactly as {"title":"headline under 80 characters","happened":"2 to 3 sentences","expected":"1 sentence","why":"1 to 2 sentences on why it was different, focused on systems not people","lesson":"one sentence anyone can act on","action":"the specific change to a standard, procedure, PM, design or training"}.\n\n${caseBrief(c)}\nActions:\n${c.capa.map(a => "- " + a.action + " (" + a.mobj + ", " + a.owner + ", due " + a.due + ")").join("\n")}`, { modelTier: "default" });
-    ["title", "happened", "expected", "why", "lesson", "action"].forEach(k => { if (j && typeof j[k] === "string" && j[k].trim()) l[k] = j[k].trim(); });
+    const j = await S.sample.json(`Write a lessons-learned entry from this root cause analysis, for a maintenance and reliability team. Plain, blame-free English, no em dashes, no invented facts. Return JSON exactly as {"title":"headline under 80 characters","happened":"2 to 3 sentences","expected":"1 sentence","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}. ${LL_WHY_RULES}\n\n${caseBrief(c)}\nActions:\n${c.capa.map(a => "- " + a.action + " (" + a.mobj + ", " + a.owner + ", due " + a.due + ")").join("\n")}`, { modelTier: "default" });
+    applyDraft(l, j);
     recEdited(); renderSheet(); toast("Drafted by Claude from the RCA. Check it before sharing.");
   } catch (e) { toast(e && e.code === "rate_limited" ? "Claude is busy. Try again in a minute." : "Could not draft the lesson this time."); if (btn) { btn.disabled = false; btn.textContent = "Draft with Claude"; } }
 }
@@ -1024,19 +1039,8 @@ async function aiLessonVideo(file) {
     if (!frames.length) throw new Error("frames");
     busy("Claude is drafting…");
     const j = await S.sample.json(`These ${frames.length} images are frames, in time order, from a short screen recording of a root cause analysis (RCA) record in a company's maintenance work system. Read everything visible in them and write a lessons-learned entry for a maintenance and reliability team. Use only facts shown in the frames: never invent names, numbers or dates, and leave a field empty when it is not shown. Plain, blame-free New Zealand English, no em dashes.
-Return JSON exactly as {"rca":"the RCA number as shown, e.g. RCA 320, or empty","preparedBy":"who prepared or led the RCA, or empty","date":"date of the event as YYYY-MM-DD, or empty","title":"short headline of the event, without the RCA number","happened":"What went wrong: 2 to 4 sentences on what happened, where and when, and the consequence","expected":"one sentence on what should have happened","why":["Why did it happen: one entry per 5 Whys step, each written as the question then the answer, then a last entry starting 'Root cause: '"],"lesson":"Learning and improvements: 1 to 3 sentences anyone can act on","actions":[{"action":"each corrective or preventive action shown","owner":"or empty","due":"YYYY-MM-DD or empty"}]}`, { images: frames, modelTier: "complex" });
-    if (!j || typeof j !== "object") throw new Error("empty");
-    const str = v => typeof v === "string" ? v.trim() : "", iso = v => /^\d{4}-\d{2}-\d{2}$/.test(str(v)) ? str(v) : "";
-    const set = (k, v) => { if (v) l[k] = v; };
-    set("srcRca", str(j.rca)); set("srcBy", str(j.preparedBy)); set("date", iso(j.date)); set("title", str(j.title));
-    set("happened", str(j.happened)); set("expected", str(j.expected)); set("lesson", str(j.lesson));
-    set("why", (Array.isArray(j.why) ? j.why : [j.why]).map(str).filter(Boolean).join("\n"));
-    const acts = (Array.isArray(j.actions) ? j.actions : []).filter(a => a && str(a.action));
-    if (acts.length) {
-      l.action = acts.map(a => str(a.action).replace(/\.$/, "")).join("; ");
-      l.owner = [...new Set(acts.map(a => str(a.owner)).filter(Boolean))].join(", ");
-      l.due = acts.map(a => iso(a.due)).filter(Boolean).sort().pop() || l.due;
-    }
+Return JSON exactly as {"rca":"the RCA number as shown, e.g. RCA 320, or empty","preparedBy":"who prepared or led the RCA, or empty","date":"date of the event as YYYY-MM-DD, or empty","title":"short headline of the event, without the RCA number","happened":"What went wrong: 2 to 4 sentences on what happened, where and when, and the consequence","expected":"one sentence on what should have happened","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}\n${LL_WHY_RULES}`, { images: frames, modelTier: "complex" });
+    applyDraft(l, j);
     delete l.pristine; touch("lessons", l);
     toast("Drafted by Claude from the video. Check it before sharing.");
   } catch (e) {
@@ -1101,8 +1105,8 @@ function lessonSheet(l) {
     ${S.sample && S.imgMax ? `<div class="fl row"><button class="btn sm" data-act="ll-video" ${S.vidBusy ? "disabled" : ""}>${esc(S.vidBusy || "Draft from a video")}</button><span class="note">Pick a short screen recording of an RCA in your work system. Claude reads it and fills in the lesson below, replacing what is there.</span></div>` : STANDALONE ? `<div class="fl"><span class="note">Drafting a lesson from a video works in the Claude version of the app.</span></div>` : ""}
     ${l.rcaId ? "" : rf(l, "srcRca", "RCA number (from your work system)", { ph: "e.g. RCA 320", half: 1 }) + rf(l, "srcBy", "RCA prepared by", { half: 1 })}
     ${rf(l, "happened", "1 What went wrong?", { type: "textarea" })}
-    ${rf(l, "why", "2 Why did it happen? (one point per line, e.g. your 5 Whys)", { type: "textarea", rows: 5 })}
-    ${rf(l, "lesson", "3 Learning and improvements (the lesson anyone can act on)", { type: "textarea", rows: 3 })}
+    ${rf(l, "why", "2 Why did it happen? (one point per line: Direct cause, Contributing factor, Root cause)", { type: "textarea", rows: 5 })}
+    ${rf(l, "lesson", "3 Learning and improvements (the key learning, 1 to 2 sentences)", { type: "textarea", rows: 3 })}
     <div class="fl"><span>Photo (shown on the slide)</span><div class="photos">${l.photo ? `<div class="ph"><img src="${l.photo}" alt="Lesson photo"><button class="phx" data-act="ll-photo-del" aria-label="Remove photo">✕</button></div>` : `<button class="btn sm" data-act="photo-add">Add photo</button>`}</div></div>
     ${rf(l, "expected", "What was expected to happen (for the register)", { type: "textarea", rows: 2 })}
     ${rf(l, "category", "Category", { type: "select", options: LL_CATS, half: 1 })}
@@ -1111,7 +1115,7 @@ function lessonSheet(l) {
     ${rf(l, "severity", "Severity", { type: "select", options: LL_SEV, half: 1 })}
     ${rf(l, "applies", "Applies to", { type: "select", options: LL_APPLY, half: 1 })}
     ${rf(l, "asset", "Asset or asset class", { half: 1, list: "dl-class" })}
-    ${rf(l, "action", "Recommended action (a change to a standard, procedure, PM, design or training)", { type: "textarea", rows: 2 })}
+    ${rf(l, "action", "Actions (one per line, shown as bullet points on the slide)", { type: "textarea", rows: 3 })}
     ${rf(l, "owner", "Owner (role)", { half: 1, list: "dl-owner" })}
     ${rf(l, "due", "Due", { type: "date", half: 1 })}
     ${rf(l, "status", "Status", { type: "select", options: LL_STATUS, half: 1 })}
@@ -1207,8 +1211,10 @@ async function tplAdd(file) {
 async function tplClear() { LTPL = null; try { await idbTx("meta", "readwrite", st => st.delete("lessonTemplate")); } catch (e) { } rerender(); }
 function lessonSections(l) {
   const lines = t => String(t || "").split(/\n+/).map(s => s.trim()).filter(Boolean);
-  const act = l.action ? "Action: " + l.action.replace(/\.?$/, ".") + [l.owner && " Owner: " + l.owner + ".", l.due && " Due: " + fmtDate(l.due) + "."].filter(Boolean).join("") : "";
-  return [lines(l.happened), lines(l.why), [...lines(l.lesson), act].filter(Boolean)];
+  const lab = s => { const m = s.match(/^([A-Z][A-Za-z ]{2,28}):\s+(.+)$/); return m ? { label: m[1] + ": ", t: m[2] } : { t: s }; };
+  const acts = lines(l.action);
+  const actLines = acts.length === 1 && (l.owner || l.due) && !/\(.*\)$/.test(acts[0]) ? [acts[0].replace(/\.$/, "") + " (" + [l.owner, l.due && "due " + fmtDate(l.due)].filter(Boolean).join(", ") + ")"] : acts;
+  return [lines(l.happened).map(t => ({ t })), lines(l.why).map(lab), [...lines(l.lesson).map(t => ({ t })), ...(actLines.length ? [{ label: "Actions", t: "" }] : []), ...actLines.map(t => ({ t, bullet: true }))]];
 }
 const lessonSlideTitle = l => { const r = caseRef(l.rcaId) || (l.srcRca && !String(l.title || "").toLowerCase().startsWith(l.srcRca.toLowerCase()) ? l.srcRca : ""); return (r ? r + " – " : "") + (l.title || "Untitled lesson"); };
 const imgSize = src => new Promise(res => { const i = new Image(); i.onload = () => res([i.naturalWidth, i.naturalHeight]); i.onerror = () => res([4, 3]); i.src = src; });
@@ -1252,7 +1258,22 @@ async function lessonSlides(list, filename) {
       let rs = kids(q, "a", "r");
       if (!rs.length) { const r = q.ownerDocument.createElementNS(NS.a, "a:r"); r.appendChild(q.ownerDocument.createElementNS(NS.a, "a:t")); const end = kids(q, "a", "endParaRPr")[0]; q.insertBefore(r, end || null); rs = [r]; }
       rs.slice(1).forEach(r => r.remove());
-      kids(rs[0], "a", "t")[0].textContent = ln;
+      const item = typeof ln === "string" ? { t: ln } : ln;
+      kids(rs[0], "a", "t")[0].textContent = item.label && !item.t ? item.label : item.t;
+      if (item.label) {
+        const rp = kids(rs[0], "a", "rPr")[0];
+        if (item.t) { const lr = rs[0].cloneNode(true); kids(lr, "a", "t")[0].textContent = item.label; q.insertBefore(lr, rs[0]); kids(lr, "a", "rPr")[0]?.setAttribute("b", "1"); }
+        else rp?.setAttribute("b", "1");
+      }
+      if (item.bullet) {
+        let pp = kids(q, "a", "pPr")[0]; if (!pp) { pp = q.ownerDocument.createElementNS(NS.a, "a:pPr"); q.insertBefore(pp, q.firstChild); }
+        pp.setAttribute("marL", "171450"); pp.setAttribute("indent", "-171450");
+        [...pp.childNodes].filter(n => ["buNone", "buChar", "buAutoNum", "buFont", "buBlip"].includes(n.localName)).forEach(n => n.remove());
+        const bf = q.ownerDocument.createElementNS(NS.a, "a:buFont"); bf.setAttribute("typeface", "Arial");
+        const bc = q.ownerDocument.createElementNS(NS.a, "a:buChar"); bc.setAttribute("char", "•");
+        const after = [...pp.childNodes].find(n => ["tabLst", "defRPr", "extLst"].includes(n.localName)) || null;
+        pp.insertBefore(bf, after); pp.insertBefore(bc, after);
+      }
       tb.appendChild(q);
     }
     if (size) all(tb, "a", "rPr").concat(all(tb, "a", "endParaRPr")).forEach(r => r.setAttribute("sz", String(Math.round(size * 100))));
@@ -1286,12 +1307,12 @@ async function lessonSlides(list, filename) {
       const xf = sp => sp.getElementsByTagNameNS(NS.a, "xfrm")[0], ext = sp => xf(sp).getElementsByTagNameNS(NS.a, "ext")[0], o = sp => xf(sp).getElementsByTagNameNS(NS.a, "off")[0];
       const top = +o(boxes[0]).getAttribute("y"), bottom = 6380000, gap = 45720, wpt = +ext(boxes[0]).getAttribute("cx") / 12700 - 14;
       const secs = lessonSections(l);
-      const est = (lines, s) => { const cpl = wpt / (s * .47); const n = 1 + lines.reduce((a, t) => a + Math.max(1, Math.ceil(t.length / cpl)), 0); return n * s * 1.2 + (lines.length + 1) * s * .85 + 10; };
+      const est = (lines, s) => { const cpl = wpt / (s * .47); const n = 1 + lines.reduce((a, t) => a + Math.max(1, Math.ceil(((t.label || "") + t.t).length / cpl)), 0); return n * s * 1.2 + (lines.length + 1) * s * .85 + 10; };
       const avail = (bottom - top - 2 * gap) / 12700;
       let size = 12; while (size > 8 && secs.reduce((a, s) => a + est(s, size), 0) > avail) size -= .5;
       const hs = secs.map(s => est(s, size)), extra = Math.max(0, (avail - hs.reduce((a, b) => a + b, 0)) / 3);
       let y = top;
-      boxes.forEach((sp, k) => { setLines(sp, secs[k].length ? secs[k] : [""], true, size); const h = Math.round((hs[k] + extra) * 12700); o(sp).setAttribute("y", String(Math.round(y))); ext(sp).setAttribute("cy", String(h)); y += h + gap; });
+      boxes.forEach((sp, k) => { setLines(sp, secs[k].length ? secs[k] : [{ t: "" }], true, size); const h = Math.round((hs[k] + extra) * 12700); o(sp).setAttribute("y", String(Math.round(y))); ext(sp).setAttribute("cy", String(h)); y += h + gap; });
     }
     if (photo) {
       if (l.photo) {
