@@ -568,7 +568,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.4", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.5", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -756,7 +756,7 @@ function nextRef(kind, pre) {
 }
 function blankLesson() {
   const now = new Date().toISOString();
-  return { id: uid(), ref: "", title: "", date: todayISO(), rcaId: "", srcRca: "", srcBy: "", asset: "", happened: "", expected: "", why: "", lesson: "", photo: "", category: "Maintenance practice", polarity: "Negative", area: "Production", severity: "Medium", applies: "Same asset class", action: "", owner: "", due: "", status: "Open", createdAt: now, updatedAt: now, example: false };
+  return { id: uid(), ref: "", title: "", date: todayISO(), rcaId: "", srcRca: "", srcBy: "", asset: "", happened: "", expected: "", why: "", lesson: "", improvements: "", photo: "", category: "Maintenance practice", polarity: "Negative", area: "Production", severity: "Medium", applies: "Same asset class", action: "", owner: "", due: "", status: "Open", createdAt: now, updatedAt: now, example: false };
 }
 function blankAlert() {
   const now = new Date().toISOString();
@@ -982,11 +982,14 @@ function lessonFromCase(c) {
     lesson: latent ? sentence(latent.text) : "",
     category: (act && CAT_OF[act.mobj]) || "Maintenance practice",
     polarity: "Negative", applies: latent && latent.type === "Latent / systemic" ? "Site-wide" : "Same asset class",
+    improvements: c.capa.filter(a => a.action).map(a => improvementOf(a.action)).join("\n"),
     action: c.capa.filter(a => a.action).map(fmtActionLine).join("\n"), owner: act ? act.owner : "", due: act ? act.due : "",
     area: AREA_OF[c.impact.consequence] || "Production", severity: cost > 100000 ? "High" : cost > 10000 ? "Medium" : "Low"
   };
 }
 const LL_WHY_RULES = "Keep every point short (under 30 words), factual and blame-free; summarise, do not copy whole paragraphs.";
+// an action written as an improvement for the slide: no numbers, owners or dates
+const improvementOf = t => String(t || "").replace(/\s*\((?:[^()]*\b(?:action|wo|work order|owner|due)\b[^()]*|\d+)\)\s*/gi, " ").replace(/\b(?:action|wo|work order)\s*#?\d+\b/gi, "").replace(/\s+/g, " ").replace(/[\s.;,]+$/, "").trim();
 function fmtActionLine(a) { const s = v => typeof v === "string" ? v.trim() : ""; const bits = [s(a.owner), /^\d{4}-\d{2}-\d{2}$/.test(s(a.due)) ? "due " + fmtDate(s(a.due)) : ""].filter(Boolean); return s(a.action).replace(/\.$/, "") + (bits.length ? " (" + bits.join(", ") + ")" : ""); }
 function applyDraft(l, j) {
   if (!j || typeof j !== "object") throw new Error("empty");
@@ -994,6 +997,7 @@ function applyDraft(l, j) {
   set("srcRca", str(j.rca)); set("srcBy", str(j.preparedBy)); set("date", iso(j.date)); set("title", str(j.title));
   set("happened", str(j.happened)); set("expected", str(j.expected)); set("lesson", str(j.lesson));
   set("why", (Array.isArray(j.why) ? j.why : [j.why]).map(str).filter(Boolean).join("\n"));
+  set("improvements", (Array.isArray(j.improvements) ? j.improvements : [j.improvements]).map(str).filter(Boolean).map(s => s.replace(/\.$/, "")).join("\n"));
   const acts = (Array.isArray(j.actions) ? j.actions : []).filter(a => a && str(a.action));
   if (acts.length) {
     l.action = acts.map(fmtActionLine).join("\n");
@@ -1005,7 +1009,7 @@ async function aiLesson() {
   const l = S.data.lessons[S.edit.id], c = S.data.cases[l.rcaId]; if (!c || !S.sample) return;
   const btn = $("[data-act=ll-ai]"); if (btn) { btn.disabled = true; btn.textContent = "Drafting…"; }
   try {
-    const j = await S.sample.json(`Write a lessons-learned entry from this root cause analysis, for a maintenance and reliability team. Plain, blame-free English, no em dashes, no invented facts. Return JSON exactly as {"title":"headline under 80 characters","happened":"2 to 3 sentences","expected":"1 sentence","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}. ${LL_WHY_RULES}\n\n${caseBrief(c)}\nActions:\n${c.capa.map(a => "- " + a.action + " (" + a.mobj + ", " + a.owner + ", due " + a.due + ")").join("\n")}`, { modelTier: "default" });
+    const j = await S.sample.json(`Write a lessons-learned entry from this root cause analysis, for a maintenance and reliability team. Plain, blame-free English, no em dashes, no invented facts. Return JSON exactly as {"title":"headline under 80 characters","happened":"2 to 3 sentences","expected":"1 sentence","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","improvements":["2 to 4 short bullet points on what is being improved so this does not happen again, worked out from the actions but written as the improvement to the system (the standard, procedure, permit, job plan, design, labelling or training), with no action numbers, names, owners or dates, e.g. 'Standard permits now say how each system is drained and by whom'"],"actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}. ${LL_WHY_RULES}\n\n${caseBrief(c)}\nActions:\n${c.capa.map(a => "- " + a.action + " (" + a.mobj + ", " + a.owner + ", due " + a.due + ")").join("\n")}`, { modelTier: "default" });
     applyDraft(l, j);
     recEdited(); renderSheet(); toast("Drafted by Claude from the RCA. Check it before sharing.");
   } catch (e) { toast(e && e.code === "rate_limited" ? "Claude is busy. Try again in a minute." : "Could not draft the lesson this time."); if (btn) { btn.disabled = false; btn.textContent = "Draft with Claude"; } }
@@ -1042,7 +1046,7 @@ async function aiLessonVideo(file) {
     if (!frames.length) throw new Error("frames");
     busy("Claude is drafting…");
     const j = await S.sample.json(`These ${frames.length} images are frames, in time order, from a short screen recording of a root cause analysis (RCA) record in a company's maintenance work system. Read everything visible in them and write a lessons-learned entry for a maintenance and reliability team. Use only facts shown in the frames: never invent names, numbers or dates, and leave a field empty when it is not shown. Plain, blame-free New Zealand English, no em dashes.
-Return JSON exactly as {"rca":"the RCA number as shown, e.g. RCA 320, or empty","preparedBy":"who prepared or led the RCA, or empty","date":"date of the event as YYYY-MM-DD, or empty","title":"short headline of the event, without the RCA number","happened":"What went wrong: 2 to 4 sentences on what happened, where and when, and the consequence","expected":"one sentence on what should have happened","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}\n${LL_WHY_RULES}`, { images: frames, modelTier: "complex" });
+Return JSON exactly as {"rca":"the RCA number as shown, e.g. RCA 320, or empty","preparedBy":"who prepared or led the RCA, or empty","date":"date of the event as YYYY-MM-DD, or empty","title":"short headline of the event, without the RCA number","happened":"What went wrong: 2 to 4 sentences on what happened, where and when, and the consequence","expected":"one sentence on what should have happened","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","improvements":["2 to 4 short bullet points on what is being improved so this does not happen again, worked out from the actions but written as the improvement to the system (the standard, procedure, permit, job plan, design, labelling or training), with no action numbers, names, owners or dates, e.g. 'Standard permits now say how each system is drained and by whom'"],"actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}\n${LL_WHY_RULES}`, { images: frames, modelTier: "complex" });
     applyDraft(l, j);
     delete l.pristine; touch("lessons", l);
     toast("Drafted by Claude from the video. Check it before sharing.");
@@ -1109,7 +1113,8 @@ function lessonSheet(l) {
     ${l.rcaId ? "" : rf(l, "srcRca", "RCA number (from your work system)", { ph: "e.g. RCA 320", half: 1 }) + rf(l, "srcBy", "RCA prepared by", { half: 1 })}
     ${rf(l, "happened", "1 What went wrong?", { type: "textarea" })}
     ${rf(l, "why", "2 Why did it happen? (one point per line: Direct cause, Contributing factor, Root cause)", { type: "textarea", rows: 5 })}
-    ${rf(l, "lesson", "3 Learning and improvements (the key learning, 1 to 2 sentences)", { type: "textarea", rows: 3 })}
+    ${rf(l, "lesson", "3 Learning and improvements: the key learning (1 to 2 sentences)", { type: "textarea", rows: 3 })}
+    ${rf(l, "improvements", "Improvements (one per line, shown as bullet points on the slide; what changes so it does not happen again)", { type: "textarea", rows: 3 })}
     <div class="fl"><span>Photo (shown on the slide)</span><div class="photos drop">${l.photo ? `<div class="ph"><img src="${l.photo}" alt="Lesson photo"><button class="phx" data-act="ll-photo-del" aria-label="Remove photo">✕</button></div>` : `<button class="btn sm" data-act="photo-add">Add photo</button><span class="dz">or drag a photo here${matchMedia("(pointer: fine)").matches ? ", or paste one with Ctrl+V" : ""}</span>`}</div></div>
     ${rf(l, "expected", "What was expected to happen (for the register)", { type: "textarea", rows: 2 })}
     ${rf(l, "category", "Category", { type: "select", options: LL_CATS, half: 1 })}
@@ -1118,7 +1123,7 @@ function lessonSheet(l) {
     ${rf(l, "severity", "Severity", { type: "select", options: LL_SEV, half: 1 })}
     ${rf(l, "applies", "Applies to", { type: "select", options: LL_APPLY, half: 1 })}
     ${rf(l, "asset", "Asset or asset class", { half: 1, list: "dl-class" })}
-    ${rf(l, "action", "Actions (one per line, shown as bullet points on the slide)", { type: "textarea", rows: 3 })}
+    ${rf(l, "action", "Actions (for the register; not shown on the slide)", { type: "textarea", rows: 3 })}
     ${rf(l, "owner", "Owner (role)", { half: 1, list: "dl-owner" })}
     ${rf(l, "due", "Due", { type: "date", half: 1 })}
     ${rf(l, "status", "Status", { type: "select", options: LL_STATUS, half: 1 })}
@@ -1230,9 +1235,8 @@ async function tplClear() { LTPL = null; try { await idbTx("meta", "readwrite", 
 function lessonSections(l) {
   const lines = t => String(t || "").split(/\n+/).map(s => s.trim()).filter(Boolean);
   const lab = s => { const m = s.match(/^([A-Z][A-Za-z ]{2,28}):\s+(.+)$/); return m ? { label: m[1] + ": ", t: m[2] } : { t: s }; };
-  const acts = lines(l.action);
-  const actLines = acts.length === 1 && (l.owner || l.due) && !/\(.*\)$/.test(acts[0]) ? [acts[0].replace(/\.$/, "") + " (" + [l.owner, l.due && "due " + fmtDate(l.due)].filter(Boolean).join(", ") + ")"] : acts;
-  return [lines(l.happened).map(t => ({ t })), lines(l.why).map(lab), [...lines(l.lesson).map(t => ({ t })), ...(actLines.length ? [{ label: "Actions", t: "" }] : []), ...actLines.map(t => ({ t, bullet: true }))]];
+  const imp = lines(l.improvements).length ? lines(l.improvements) : lines(l.action).map(improvementOf).filter(Boolean);
+  return [lines(l.happened).map(t => ({ t })), lines(l.why).map(lab), [...lines(l.lesson).map(t => ({ t })), ...(imp.length ? [{ label: "Improvements", t: "" }] : []), ...imp.map(t => ({ t: t.replace(/\.$/, ""), bullet: true }))]];
 }
 const lessonSlideTitle = l => { const r = caseRef(l.rcaId) || (l.srcRca && !String(l.title || "").toLowerCase().startsWith(l.srcRca.toLowerCase()) ? l.srcRca : ""); return (r ? r + " – " : "") + (l.title || "Untitled lesson"); };
 const imgSize = src => new Promise(res => { const i = new Image(); i.onload = () => res([i.naturalWidth, i.naturalHeight]); i.onerror = () => res([4, 3]); i.src = src; });
