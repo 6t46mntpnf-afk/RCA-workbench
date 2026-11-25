@@ -1,6 +1,6 @@
 {
-  "name": "Rootline",
-  "short_name": "Rootline",
+  "name": "Reliability +",
+  "short_name": "Reliability+",
   "description": "Root cause analysis, lessons learned and safety alerts in one place.",
   "start_url": "./",
   "scope": "./",

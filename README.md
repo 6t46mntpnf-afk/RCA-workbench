@@ -1,4 +1,4 @@
-# Rootline
+# Reliability +
 
 *Find it. Fix it. For good.*
 
@@ -35,7 +35,7 @@ It installs on desktop and phone as an app (a Progressive Web App) and works off
 
 Open the hosted address (see "Hosting" below), then:
 
-- **Windows or Mac (Chrome or Edge):** click the install icon at the right of the address bar, or open the menu and choose *Install Rootline*.
+- **Windows or Mac (Chrome or Edge):** click the install icon at the right of the address bar, or open the menu and choose *Install Reliability +*.
 - **iPhone or iPad (Safari):** tap Share, then *Add to Home Screen*.
 - **Android (Chrome):** open the menu and tap *Install app* or *Add to Home screen*.
 
@@ -59,7 +59,7 @@ They do not sync between devices. Use **Settings › Download a full backup** to
 | `index.html` | The whole app: styles, page structure and all JavaScript in one file |
 | `sw.js` | Service worker that caches the app for offline use |
 | `manifest.webmanifest` | App name, colours and icons used when it is installed |
-| `icons/` | App icons (the Rootline mark) |
+| `icons/` | App icons (the Reliability + mark) |
 | `vendor/xlsx.full.min.js` | SheetJS 0.18.5, reads CSV/XLSX and writes Excel exports (Apache 2.0, see `vendor/xlsx-LICENSE.txt`) |
 | `vendor/manrope-latin-wght-normal.woff2` | Manrope typeface (SIL Open Font Licence, see `vendor/manrope-OFL.txt`) |
 
