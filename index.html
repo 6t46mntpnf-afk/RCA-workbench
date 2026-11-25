@@ -565,7 +565,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.1", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.2", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -1305,14 +1305,16 @@ async function lessonSlides(list, filename) {
     if (boxes.length === 3) {
       // size the text so the three boxes fit between the first box and the footer
       const xf = sp => sp.getElementsByTagNameNS(NS.a, "xfrm")[0], ext = sp => xf(sp).getElementsByTagNameNS(NS.a, "ext")[0], o = sp => xf(sp).getElementsByTagNameNS(NS.a, "off")[0];
-      const top = +o(boxes[0]).getAttribute("y"), bottom = 6380000, gap = 45720, wpt = +ext(boxes[0]).getAttribute("cx") / 12700 - 14;
+      const top = +o(boxes[0]).getAttribute("y"), bottom = Math.max(...boxes.map(sp => +o(sp).getAttribute("y") + +ext(sp).getAttribute("cy"))) || 6380000, gap = 45720, wpt = +ext(boxes[0]).getAttribute("cx") / 12700 - 14;
       const secs = lessonSections(l);
       const est = (lines, s) => { const cpl = wpt / (s * .47); const n = 1 + lines.reduce((a, t) => a + Math.max(1, Math.ceil(((t.label || "") + t.t).length / cpl)), 0); return n * s * 1.2 + (lines.length + 1) * s * .85 + 10; };
       const avail = (bottom - top - 2 * gap) / 12700;
       let size = 12; while (size > 8 && secs.reduce((a, s) => a + est(s, size), 0) > avail) size -= .5;
       const hs = secs.map(s => est(s, size)), extra = Math.max(0, (avail - hs.reduce((a, b) => a + b, 0)) / 3);
       let y = top;
-      boxes.forEach((sp, k) => { setLines(sp, secs[k].length ? secs[k] : [{ t: "" }], true, size); const h = Math.round((hs[k] + extra) * 12700); o(sp).setAttribute("y", String(Math.round(y))); ext(sp).setAttribute("cy", String(h)); y += h + gap; });
+      boxes.forEach((sp, k) => { setLines(sp, secs[k].length ? secs[k] : [{ t: "" }], true, size); const h = k === 2 ? Math.round(bottom - y) : Math.round((hs[k] + extra) * 12700); o(sp).setAttribute("y", String(Math.round(y))); ext(sp).setAttribute("cy", String(h)); y += h + gap; });
+      // the photo frame runs from the top of the first box to the bottom of the last
+      if (photo) { const pf = photo.getElementsByTagNameNS(NS.a, "xfrm")[0]; if (pf) { pf.getElementsByTagNameNS(NS.a, "off")[0].setAttribute("y", String(top)); pf.getElementsByTagNameNS(NS.a, "ext")[0].setAttribute("cy", String(Math.round(bottom - top))); } }
     }
     if (photo) {
       if (l.photo) {
@@ -1321,9 +1323,11 @@ async function lessonSlides(list, filename) {
         const rel = srels.createElementNS(NS.pr, "Relationship"); rel.setAttribute("Id", rid); rel.setAttribute("Type", IMG_T); rel.setAttribute("Target", "../media/lesson-photo-" + (i + 1) + ".jpeg"); srels.documentElement.appendChild(rel);
         const b = photo.getElementsByTagNameNS(NS.a, "xfrm")[0], bo = b.getElementsByTagNameNS(NS.a, "off")[0], be = b.getElementsByTagNameNS(NS.a, "ext")[0];
         const [bx, by, bw, bh] = [+bo.getAttribute("x"), +bo.getAttribute("y"), +be.getAttribute("cx"), +be.getAttribute("cy")];
-        const [iw, ih] = await imgSize(l.photo), sc = Math.min(bw / iw, bh / ih), w = Math.round(iw * sc), h = Math.round(ih * sc);
+        // fill the frame exactly, cropping the photo's overflow evenly
+        const [iw, ih] = await imgSize(l.photo), ia = iw / ih, fa = bw / bh, cut = ia > fa ? (1 - fa / ia) / 2 : (1 - ia / fa) / 2, crop = Math.round(cut * 100000);
+        const src = crop > 0 ? (ia > fa ? `<a:srcRect l="${crop}" r="${crop}"/>` : `<a:srcRect t="${crop}" b="${crop}"/>`) : "";
         const maxId = Math.max(1, ...all(doc.documentElement, "p", "cNvPr").map(e => +e.getAttribute("id") || 0));
-        const pic = parse(`<p:pic xmlns:p="${NS.p}" xmlns:a="${NS.a}" xmlns:r="${NS.r}"><p:nvPicPr><p:cNvPr id="${maxId + 1}" name="Lesson photo"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${bx + Math.round((bw - w) / 2)}" y="${by + Math.round((bh - h) / 2)}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`).documentElement;
+        const pic = parse(`<p:pic xmlns:p="${NS.p}" xmlns:a="${NS.a}" xmlns:r="${NS.r}"><p:nvPicPr><p:cNvPr id="${maxId + 1}" name="Lesson photo"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${rid}"/>${src}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${bx}" y="${by}"/><a:ext cx="${bw}" cy="${bh}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`).documentElement;
         tree.replaceChild(doc.importNode(pic, true), photo);
       } else photo.remove();
     }
