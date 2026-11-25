@@ -168,6 +168,9 @@ main.view { min-width: 0; padding-block: 24px 48px; padding-left: max(18px, env(
 .sheet > footer .sp { flex: 1 }
 .photos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
 .photos .ph { position: relative }
+.photos.drop { border: 2px dashed var(--line); border-radius: 12px; padding: 10px; min-height: 104px; transition: border-color .15s, background .15s }
+.photos .dz { font-size: 12.5px; color: var(--muted); line-height: 1.35 }
+.sheet.dragging .photos.drop { border-color: var(--accent); background: var(--accent-soft) }
 .photos img { width: 84px; height: 84px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); display: block }
 .photos .phx { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 11px; padding: 0 }
 
@@ -565,7 +568,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.3", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.4", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -1107,7 +1110,7 @@ function lessonSheet(l) {
     ${rf(l, "happened", "1 What went wrong?", { type: "textarea" })}
     ${rf(l, "why", "2 Why did it happen? (one point per line: Direct cause, Contributing factor, Root cause)", { type: "textarea", rows: 5 })}
     ${rf(l, "lesson", "3 Learning and improvements (the key learning, 1 to 2 sentences)", { type: "textarea", rows: 3 })}
-    <div class="fl"><span>Photo (shown on the slide)</span><div class="photos">${l.photo ? `<div class="ph"><img src="${l.photo}" alt="Lesson photo"><button class="phx" data-act="ll-photo-del" aria-label="Remove photo">✕</button></div>` : `<button class="btn sm" data-act="photo-add">Add photo</button>`}</div></div>
+    <div class="fl"><span>Photo (shown on the slide)</span><div class="photos drop">${l.photo ? `<div class="ph"><img src="${l.photo}" alt="Lesson photo"><button class="phx" data-act="ll-photo-del" aria-label="Remove photo">✕</button></div>` : `<button class="btn sm" data-act="photo-add">Add photo</button><span class="dz">or drag a photo here${matchMedia("(pointer: fine)").matches ? ", or paste one with Ctrl+V" : ""}</span>`}</div></div>
     ${rf(l, "expected", "What was expected to happen (for the register)", { type: "textarea", rows: 2 })}
     ${rf(l, "category", "Category", { type: "select", options: LL_CATS, half: 1 })}
     ${rf(l, "polarity", "Type", { type: "select", options: [["Negative", "Negative: prevent it"], ["Positive", "Positive: repeat it"]], half: 1 })}
@@ -1134,7 +1137,7 @@ function alertSheet(a) {
     ${rf(a, "actCons", "Actual consequence", { type: "select", options: [["", "Choose"], ...CONSEQ], half: 1 })}
     ${rf(a, "what", "What happened? (plain words for the crew, one paragraph per line)", { type: "textarea", rows: 5 })}
     ${rf(a, "prompts", "Prompts / questions for your team (one per line)", { type: "textarea", rows: 4, ph: "e.g. Have all sources of energy been identified?" })}
-    <div class="fl"><span>Photos (up to 3)</span><div class="photos">${a.photos.map((p, i) => `<div class="ph"><img src="${p}" alt="Photo ${i + 1}"><button class="phx" data-act="photo-del" data-i="${i}" aria-label="Remove photo ${i + 1}">✕</button></div>`).join("")}${a.photos.length < 3 ? `<button class="btn sm" data-act="photo-add">Add photo</button>` : ""}</div></div>
+    <div class="fl"><span>Photos (up to 3)</span><div class="photos drop">${a.photos.map((p, i) => `<div class="ph"><img src="${p}" alt="Photo ${i + 1}"><button class="phx" data-act="photo-del" data-i="${i}" aria-label="Remove photo ${i + 1}">✕</button></div>`).join("")}${a.photos.length < 3 ? `<button class="btn sm" data-act="photo-add">Add photo</button><span class="dz">or drag a photo here${matchMedia("(pointer: fine)").matches ? ", or paste one with Ctrl+V" : ""}</span>` : ""}</div></div>
     ${rf(a, "captions", "Photo captions (one per line, in photo order)", { type: "textarea", rows: 2 })}
     ${rf(a, "contact", "Contact person and role", { half: 1, ph: "Name – role" })}
     ${rf(a, "contactEmail", "Contact email or phone", { half: 1 })}
@@ -1172,6 +1175,21 @@ function alertText(x) {
 }
 const alertFile = (x, word) => `${word ? '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' : "<!doctype html><html lang=\"en\">"}<head><meta charset="utf-8"><title>${esc(x.ref)} Safety Alert</title><style>@page{size:A4 landscape;margin:10mm}body{margin:24px;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>${alertHTML(x)}</body></html>`;
 const alertName = x => safeName(x.ref + " safety alert " + x.title);
+/* drag and drop, or paste, photos into a lesson or safety alert */
+function photoTarget() { return S.edit && (S.edit.kind === "lessons" || S.edit.kind === "alerts") ? S.data[S.edit.kind][S.edit.id] : null; }
+function takeImages(list) {
+  const r = photoTarget(); if (!r) return false;
+  const imgs = [...(list || [])].filter(f => f && /^image\//.test(f.type)); if (!imgs.length) return false;
+  if (S.edit.kind === "alerts" && r.photos.length >= 3) { toast("This alert already has 3 photos. Remove one first."); return true; }
+  addPhotos(imgs); toast(S.edit.kind === "lessons" ? "Photo added" : imgs.length > 1 ? "Photos added" : "Photo added"); return true;
+}
+let dragDepth = 0;
+const hasFiles = e => [...(e.dataTransfer?.types || [])].includes("Files");
+document.addEventListener("dragenter", e => { if (!hasFiles(e) || !photoTarget()) return; dragDepth++; document.querySelector(".sheet")?.classList.add("dragging"); });
+document.addEventListener("dragleave", e => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; document.querySelector(".sheet")?.classList.remove("dragging"); } });
+document.addEventListener("dragover", e => { if (hasFiles(e) && photoTarget()) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } });
+document.addEventListener("drop", e => { if (!hasFiles(e) || !photoTarget()) return; e.preventDefault(); dragDepth = 0; document.querySelector(".sheet")?.classList.remove("dragging"); if (!takeImages(e.dataTransfer.files)) toast("Drop a photo (JPG or PNG)"); });
+document.addEventListener("paste", e => { const fs = [...(e.clipboardData?.items || [])].filter(i => i.kind === "file").map(i => i.getAsFile()); if (fs.length && takeImages(fs)) e.preventDefault(); });
 async function addPhotos(files) {
   if (S.edit.kind === "lessons") { try { S.data.lessons[S.edit.id].photo = await shrinkImage(files[0], 1400, "image/jpeg", .8); } catch (e) { toast("That image could not be read"); } recEdited(); renderSheet(); return; }
   const a = S.data.alerts[S.edit.id];
