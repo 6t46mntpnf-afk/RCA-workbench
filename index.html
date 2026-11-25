@@ -565,7 +565,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.0", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.1", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -1335,6 +1335,18 @@ async function lessonSlides(list, filename) {
     }
   }
   z.file("ppt/presentation.xml", ser(pres)); z.file("ppt/_rels/presentation.xml.rels", ser(presRels)); z.file("[Content_Types].xml", ser(ct));
+  // PowerPoint refuses a file with folder entries or relationships that point at missing parts, so tidy the package
+  for (const k of Object.keys(z.files)) if (z.files[k].dir) delete z.files[k];
+  const partAt = (base, t) => { if (t.startsWith("/")) return t.slice(1); const out = []; (base + t).split("/").forEach(s => { if (s === "..") out.pop(); else if (s && s !== ".") out.push(s); }); return out.join("/"); };
+  for (const k of Object.keys(z.files).filter(k => k.endsWith(".rels"))) {
+    const base = k.replace(/_rels\/[^/]+$/, ""), d = parse(await z.file(k).async("string")); let bad = false;
+    all(d.documentElement, "pr", "Relationship").forEach(r => { if (r.getAttribute("TargetMode") !== "External" && !z.files[partAt(base, r.getAttribute("Target"))]) { r.remove(); bad = true; } });
+    if (bad) z.file(k, ser(d));
+  }
+  const ct2 = parse(await z.file("[Content_Types].xml").async("string")); let ctBad = false;
+  all(ct2.documentElement, "ct", "Override").forEach(o => { if (!z.files[o.getAttribute("PartName").replace(/^\//, "")]) { o.remove(); ctBad = true; } });
+  if (ctBad) z.file("[Content_Types].xml", ser(ct2));
+  for (const k of Object.keys(z.files)) if (z.files[k].dir) delete z.files[k];
   const blob = await z.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", compression: "DEFLATE" });
   offer(filename, blob);
 }
