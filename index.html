@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Reliability +: root cause analysis, lessons learned and safety alerts in one place. Guided 5 Whys, optional fishbone, failure history, actions and customer-ready reports.">
+<meta name="description" content="Reliability +: root cause analysis, lessons learnt and safety alerts in one place. Guided 5 Whys, optional fishbone, failure history, actions and customer-ready reports.">
 <meta name="theme-color" content="#F4F4F2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
@@ -21,7 +21,7 @@ body { margin: 0 } img { max-width: 100% } [hidden] { display: none !important }
 /* Manrope (SIL Open Font Licence, see vendor/manrope-OFL.txt), served from this app so it works offline */
 @font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url(vendor/manrope-latin-wght-normal.woff2) format("woff2") }
 /* Layout: Steel & Copper app shell (matches Foreman HQ). Sidebar on desktop, bottom tab bar + add button on phone.
-   Views: dashboard, RCA register, one RCA (step rail + working card), lessons learned, safety alerts, settings. Records open in a sheet. */
+   Views: dashboard, RCA register, one RCA (step rail + working card), lessons learnt, safety alerts, settings. Records open in a sheet. */
 :root {
   --bg: #F4F4F2; --surface: #FFFFFF; --surface-2: #EFEFEC; --fg: #1A1A1A; --muted: #6B6B66; --line: #E3E3DF; --hair: #ECECEA;
   --solid: #1A1A1A; --solid-fg: #FFFFFF; --accent: #B0683A; --accent-soft: #F6EBE3;
@@ -644,7 +644,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.4.0", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.4.1", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -671,7 +671,7 @@ const RCA_DOT = { "Draft": "", "In progress": "dot-blue", "Actions open": "dot-a
 const RCA_PILL = { "Draft": "grey", "In progress": "blue", "Actions open": "amber", "Closed": "green" };
 const ACTION_DONE = ["Complete", "Verified effective"];
 
-/* Lessons learned (fields follow the lessons-learned method) */
+/* Lessons learnt (fields follow the lessons-learnt method) */
 const LL_CATS = ["Design", "Operations", "Maintenance practice", "Procedures", "Training & competency", "Contractor management", "Spares & supply", "Planning & scheduling", "Communication", "Management of change"];
 const LL_AREAS = ["Safety", "Environment", "Production", "Cost", "Quality"];
 const LL_SEV = ["High", "Medium", "Low"];
@@ -879,7 +879,7 @@ async function seedExamples() {
 }
 
 /* ---------- rendering: app shell ---------- */
-const NAV = [["dashboard", "Dashboard", "Home", "home"], ["rcas", "RCAs", "RCAs", "rca"], ["lessons", "Lessons learned", "Lessons", "bulb"], ["alerts", "Safety alerts", "Alerts", "alert"], ["settings", "Settings", "Settings", "gear"]];
+const NAV = [["dashboard", "Dashboard", "Home", "home"], ["rcas", "RCA", "RCA", "rca"], ["lessons", "Lessons learnt", "Lessons", "bulb"], ["alerts", "Safety alerts", "Alerts", "alert"], ["settings", "Settings", "Settings", "gear"]];
 function navCounts() {
   return { dashboard: overdueActions().length, rcas: allCases().filter(isOpen).length, lessons: allLessons().filter(llOpen).length, alerts: allAlerts().filter(a => a.status !== "Issued").length, settings: 0 };
 }
@@ -996,7 +996,7 @@ dashboard() {
   const actTot = D.act.done + D.act.open + D.act.over, h = new Date().getHours();
   const panel = (icon, title, sub, body, cls, id) => `<section class="panel ${cls || ""}"${id ? ` id="${id}"` : ""}><div class="ph2"><span class="ib">${ic(icon)}</span>${title}${sub ? `<span class="sub">${sub}</span>` : ""}</div>${body}</section>`;
   return `<div class="dhead"><div><h1>${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}</h1><p class="lede" style="margin:4px 0 0">${fmtDate(todayISO())}${SET.company ? " · " + esc(SET.company) : ""}</p></div>
-    <div class="qchips"><button class="qchip" data-act="new-rca"><span class="b">${ic("rca")}</span>New RCA</button><button class="qchip" data-act="new-lesson"><span class="b">${ic("bulb")}</span>Lesson</button><button class="qchip hot" data-act="new-alert"><span class="b">${ic("alert")}</span>Safety alert</button></div></div>
+    <div class="qchips"><button class="qchip" data-act="new-rca"><span class="b">${ic("rca")}</span>RCA</button><button class="qchip" data-act="new-lesson"><span class="b">${ic("bulb")}</span>Lessons learnt</button><button class="qchip hot" data-act="new-alert"><span class="b">${ic("alert")}</span>Safety alert</button></div></div>
   <div class="kpis">
     <button class="kpi" data-act="nav" data-view="rcas" data-f="open"><span class="top"><span class="ico">${ic("rca")}</span><span class="k">Open RCAs</span></span><span class="row2"><span class="v">${open.length}</span>${vizSpark(last6)}</span><span class="s"><b>${last6.reduce((a, b) => a + b, 0)}</b> new in 6 months</span></button>
     <button class="kpi ${od.length ? "bad" : "good"}" data-act="jump" data-to="pOverdue"><span class="top"><span class="ico">${ic(od.length ? "clock" : "check")}</span><span class="k">Overdue actions</span></span><span class="row2"><span class="v">${od.length}</span>${vizRing(actTot ? D.act.done / actTot : 0, "var(--green)")}</span><span class="s"><b>${actTot ? Math.round(100 * D.act.done / actTot) : 0}%</b> of ${actTot} actions done</span></button>
@@ -1026,7 +1026,7 @@ rcas() {
 },
 lessons() {
   const ls = allLessons(), n = ls.filter(llOpen).length;
-  return `<div class="vhead"><div class="grow"><h1>Lessons learned</h1><p class="lede">A lesson is only learned once it is built into a procedure, PM, design standard or training. Track each one until it is embedded.</p></div>
+  return `<div class="vhead"><div class="grow"><h1>Lessons learnt</h1><p class="lede">A lesson is only learned once it is built into a procedure, PM, design standard or training. Track each one until it is embedded.</p></div>
     <div class="acts"><button class="btn" data-act="ll-pptx-all" ${ls.length ? "" : "disabled"}>Slides (.pptx)</button><button class="btn" data-act="ll-xlsx" ${ls.length ? "" : "disabled"}>Excel register</button><button class="btn pri" data-act="new-lesson">${ic("plus")}New lesson</button></div></div>
   <div class="filters">${seg("lessons", [["all", "All", ls.length], ["open", "Not embedded", n], ["done", "Embedded", ls.length - n], ["good", "Good practice", ls.filter(l => l.polarity === "Positive").length]])}<input type="search" data-q="lessons" value="${esc(S.q)}" placeholder="Search lessons" aria-label="Search lessons"></div>
   <div class="rlist" id="rlist">${listBody("lessons")}</div>`;
@@ -1162,7 +1162,7 @@ async function aiLesson() {
   const l = S.data.lessons[S.edit.id], c = S.data.cases[l.rcaId]; if (!c || !S.sample) return;
   const btn = $("[data-act=ll-ai]"); if (btn) { btn.disabled = true; btn.textContent = "Drafting…"; }
   try {
-    const j = await S.sample.json(`Write a lessons-learned entry from this root cause analysis, for a maintenance and reliability team. Plain, blame-free English, no em dashes, no invented facts. Return JSON exactly as {"title":"headline under 80 characters","happened":"2 to 3 sentences","expected":"1 sentence","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","improvements":["2 to 4 short bullet points on what is being improved so this does not happen again, worked out from the actions but written as the improvement to the system (the standard, procedure, permit, job plan, design, labelling or training), with no action numbers, names, owners or dates, e.g. 'Standard permits now say how each system is drained and by whom'"],"actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}. ${LL_WHY_RULES}\n\n${caseBrief(c)}\nActions:\n${c.capa.map(a => "- " + a.action + " (" + a.mobj + ", " + a.owner + ", due " + a.due + ")").join("\n")}`, { modelTier: "default" });
+    const j = await S.sample.json(`Write a lessons-learnt entry from this root cause analysis, for a maintenance and reliability team. Plain, blame-free English, no em dashes, no invented facts. Return JSON exactly as {"title":"headline under 80 characters","happened":"2 to 3 sentences","expected":"1 sentence","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","improvements":["2 to 4 short bullet points on what is being improved so this does not happen again, worked out from the actions but written as the improvement to the system (the standard, procedure, permit, job plan, design, labelling or training), with no action numbers, names, owners or dates, e.g. 'Standard permits now say how each system is drained and by whom'"],"actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}. ${LL_WHY_RULES}\n\n${caseBrief(c)}\nActions:\n${c.capa.map(a => "- " + a.action + " (" + a.mobj + ", " + a.owner + ", due " + a.due + ")").join("\n")}`, { modelTier: "default" });
     applyDraft(l, j);
     recEdited(); renderSheet(); toast("Drafted by Claude from the RCA. Check it before sharing.");
   } catch (e) { toast(e && e.code === "rate_limited" ? "Claude is busy. Try again in a minute." : "Could not draft the lesson this time."); if (btn) { btn.disabled = false; btn.textContent = "Draft with Claude"; } }
@@ -1198,7 +1198,7 @@ async function aiLessonVideo(file) {
     const frames = await videoFrames(file, Math.max(2, Math.min(S.imgMax, 20)), (i, n) => busy("Reading video " + Math.round(i / n * 100) + "%"));
     if (!frames.length) throw new Error("frames");
     busy("Claude is drafting…");
-    const j = await S.sample.json(`These ${frames.length} images are frames, in time order, from a short screen recording of a root cause analysis (RCA) record in a company's maintenance work system. Read everything visible in them and write a lessons-learned entry for a maintenance and reliability team. Use only facts shown in the frames: never invent names, numbers or dates, and leave a field empty when it is not shown. Plain, blame-free New Zealand English, no em dashes.
+    const j = await S.sample.json(`These ${frames.length} images are frames, in time order, from a short screen recording of a root cause analysis (RCA) record in a company's maintenance work system. Read everything visible in them and write a lessons-learnt entry for a maintenance and reliability team. Use only facts shown in the frames: never invent names, numbers or dates, and leave a field empty when it is not shown. Plain, blame-free New Zealand English, no em dashes.
 Return JSON exactly as {"rca":"the RCA number as shown, e.g. RCA 320, or empty","preparedBy":"who prepared or led the RCA, or empty","date":"date of the event as YYYY-MM-DD, or empty","title":"short headline of the event, without the RCA number","happened":"What went wrong: 2 to 4 sentences on what happened, where and when, and the consequence","expected":"one sentence on what should have happened","why":["2 to 4 short points, each one plain sentence starting with a label: 'Direct cause: ' (what physically or immediately went wrong), then 'Contributing factor: ' for each thing that allowed it (at most two), and last 'Root cause: ' (the underlying system reason)"],"lesson":"the key learning in 1 to 2 plain sentences anyone can act on, without listing the actions","improvements":["2 to 4 short bullet points on what is being improved so this does not happen again, worked out from the actions but written as the improvement to the system (the standard, procedure, permit, job plan, design, labelling or training), with no action numbers, names, owners or dates, e.g. 'Standard permits now say how each system is drained and by whom'"],"actions":[{"action":"each corrective or preventive action, short, starting with a verb, with its work order or action number if shown","owner":"role or name, or empty","due":"YYYY-MM-DD or empty"}]}\n${LL_WHY_RULES}`, { images: frames, modelTier: "complex" });
     applyDraft(l, j);
     delete l.pristine; touch("lessons", l);
@@ -1251,12 +1251,12 @@ function menuSheet() {
   return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Add new" style="max-width:520px"><header><h2>Add new</h2><button class="x" data-act="close-sheet" aria-label="Close">✕</button></header>
   <div class="qa" style="grid-template-columns:1fr;padding:16px 18px">
     <button data-act="new-rca">${ic("rca")}<span><b>Root cause analysis</b><small>Guided method with a customer report</small></span></button>
-    <button data-act="new-lesson">${ic("bulb")}<span><b>Lesson learned</b><small>Capture it and track it until it is embedded</small></span></button>
+    <button data-act="new-lesson">${ic("bulb")}<span><b>Lesson learnt</b><small>Capture it and track it until it is embedded</small></span></button>
     <button data-act="new-alert" class="hot">${ic("alert")}<span><b>Safety alert</b><small>One page in your template, with photos</small></span></button>
   </div></div>`;
 }
 function lessonSheet(l) {
-  return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Lesson learned"><header><span class="mono">${esc(l.ref)}</span><h2 id="sheetTitle">${esc(l.title || "New lesson")}</h2><button class="x" data-act="close-sheet" aria-label="Close">✕</button></header>
+  return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Lesson learnt"><header><span class="mono">${esc(l.ref)}</span><h2 id="sheetTitle">${esc(l.title || "New lesson")}</h2><button class="x" data-act="close-sheet" aria-label="Close">✕</button></header>
   <div class="sform">
     ${rf(l, "title", "Lesson title", { ph: "Short headline, e.g. Job plan rewrites can drop OEM tasks", af: 1 })}
     ${rf(l, "date", "Date", { type: "date", half: 1 })}
@@ -1549,7 +1549,7 @@ function lessonBulletin(l) {
   .ft{padding:12px 28px 18px;color:#6B6B66;font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid #ECECEA}
   @media print{body{background:#fff}.pg{margin:0;border-radius:0;max-width:none}}
   </style></head><body><div class="pg">
-  <div class="hd"><div><div class="k">Lesson learned</div><div style="font-size:15px;font-weight:700;margin-top:4px">${esc(SET.company || "")}</div></div><div class="r">${SET.logo ? `<img src="${SET.logo}" alt=""><br>` : ""}${esc(l.ref)} · ${fmtDate(l.date)}</div></div>
+  <div class="hd"><div><div class="k">Lesson learnt</div><div style="font-size:15px;font-weight:700;margin-top:4px">${esc(SET.company || "")}</div></div><div class="r">${SET.logo ? `<img src="${SET.logo}" alt=""><br>` : ""}${esc(l.ref)} · ${fmtDate(l.date)}</div></div>
   <div class="bd"><h1>${esc(l.title || "Untitled lesson")}</h1>
   <div class="pills"><span class="pill" style="background:${l.polarity === "Positive" ? "#E7F1E6;color:#2F6B3A" : "#FBECEB;color:#B3261E"}">${l.polarity === "Positive" ? "Good practice: repeat it" : "Prevent it"}</span><span class="pill">${esc(l.category)}</span><span class="pill" style="color:${sevCol}">${esc(l.area)} · ${esc(l.severity)}</span><span class="pill">Applies to: ${esc(l.applies)}</span>${l.asset ? `<span class="pill">${esc(l.asset)}</span>` : ""}</div>
   ${blk("What happened", l.happened)}${blk("What we expected", l.expected)}${blk("Why it was different", l.why)}${blk("The lesson", l.lesson, true)}
@@ -1560,7 +1560,7 @@ function exportLessonsXlsx() {
   if (typeof XLSX === "undefined") { toast("The spreadsheet library did not load"); return; }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allLessons().map(l => ({ Ref: l.ref, Date: l.date, Title: l.title, "What happened": l.happened, Expected: l.expected, "Why it differed": l.why, Lesson: l.lesson, Category: l.category, Type: l.polarity, "Impact area": l.area, Severity: l.severity, "Applies to": l.applies, Asset: l.asset, "Recommended action": l.action, Owner: l.owner, Due: l.due, Status: l.status, "Linked RCA": caseRef(l.rcaId) }))), "Lessons register");
-  offer("Lessons-learned-register-" + todayISO() + ".xlsx", new Blob([XLSX.write(wb, { type: "array", bookType: "xlsx" })]));
+  offer("Lessons-learnt-register-" + todayISO() + ".xlsx", new Blob([XLSX.write(wb, { type: "array", bookType: "xlsx" })]));
 }
 function printHTML(css, html) { $("#printArea").innerHTML = `<style>${css}</style>${html}`; setTimeout(() => window.print(), 60); }
 
