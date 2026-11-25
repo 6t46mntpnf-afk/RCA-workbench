@@ -565,7 +565,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.2", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.3.3", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -1891,6 +1891,19 @@ async function offer(filename, data) {
   try { await S.downloads.save({ filename, data }); toast("Saved " + filename); }
   catch (e) { if (e && e.code === "declined") return; if (e && e.code === "rejected_extension" && /\.doc$/.test(filename)) return offer(filename.replace(/\.doc$/, ".html"), data); toast("Could not save the file (" + (e && e.code || "error") + ")"); }
 }
+/* PowerPoint file names: "RCA 320 - Short description.pptx" */
+const fileSafe = s => String(s || "").replace(/[<>:"/\\|?*\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim();
+const rcaLabel = l => { const r = caseRef(l.rcaId) || l.srcRca || ""; return r ? r.trim().replace(/^rca[\s\-_:#]*/i, "RCA ") : ""; };
+function shortDesc(title, rca) {
+  let t = String(title || "").trim(); if (rca) t = t.replace(new RegExp("^" + rca.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /, "[\\s\\-_]*") + "\\s*[-–:]?\\s*", "i"), "");
+  if (t.length <= 40) return t; const cut = t.slice(0, 41).replace(/\s+\S*$/, ""); return (cut || t.slice(0, 40)).replace(/[\s,;:–-]+$/, "");
+}
+function lessonDeckName(list) {
+  const rcas = [...new Set(list.map(rcaLabel))];
+  if (list.length === 1) { const l = list[0], r = rcas[0]; return fileSafe([r || l.ref, shortDesc(l.title, r), "Lessons Learnt"].filter(Boolean).join(" - ")) + ".pptx"; }
+  if (rcas.length === 1 && rcas[0]) return fileSafe(rcas[0] + " - Lessons Learnt") + ".pptx";
+  return fileSafe("RCA Lessons Learnt - " + fmtDate(todayISO())) + ".pptx";
+}
 const safeName = s => String(s || "rca").replace(/[^A-Za-z0-9_\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 80) || "rca";
 function exportXlsx() {
   if (typeof XLSX === "undefined") { toast("The spreadsheet library did not load"); return; }
@@ -2019,8 +2032,8 @@ document.addEventListener("click", e => {
     case "ll-fill": { const r = rec(), c2 = S.data.cases[r.rcaId]; if (!c2) break; const f = lessonFromCase(c2); delete f.date; Object.assign(r, f); recEdited(); renderSheet(); toast("Filled from " + c2.meta.reportId); break; }
     case "ll-ai": aiLesson(); break;
     case "ll-xlsx": exportLessonsXlsx(); break;
-    case "ll-pptx": { const l = rec(); flushSaves(); lessonSlides([l], safeName(l.ref + " lesson " + l.title) + ".pptx"); break; }
-    case "ll-pptx-all": lessonSlides(lessonsShown(), "Lessons-learned-" + todayISO() + ".pptx"); break;
+    case "ll-pptx": { const l = rec(); flushSaves(); lessonSlides([l], lessonDeckName([l])); break; }
+    case "ll-pptx-all": { const ls = lessonsShown(); lessonSlides(ls, lessonDeckName(ls)); break; }
     case "ll-video": $("#fileVid").click(); break;
     case "ll-photo-del": rec().photo = ""; recEdited(); renderSheet(); break;
     case "tpl-add": $("#fileTpl").click(); break;
