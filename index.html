@@ -303,6 +303,7 @@ table.t tr.hl td { background: var(--red-soft) }
 
 </style>
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -322,6 +323,7 @@ table.t tr.hl td { background: var(--red-soft) }
 <input type="file" id="fileLogo" accept="image/*" hidden>
 <input type="file" id="fileSetLogo" accept="image/*" hidden>
 <input type="file" id="filePhoto" accept="image/*" multiple hidden>
+<input type="file" id="fileTpl" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
 <div id="toast" class="toast" hidden></div>
 <div id="lists" hidden></div>
 <div id="printArea"></div>
@@ -562,7 +564,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.0.2", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.1.0", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -750,7 +752,7 @@ function nextRef(kind, pre) {
 }
 function blankLesson() {
   const now = new Date().toISOString();
-  return { id: uid(), ref: "", title: "", date: todayISO(), rcaId: "", asset: "", happened: "", expected: "", why: "", lesson: "", category: "Maintenance practice", polarity: "Negative", area: "Production", severity: "Medium", applies: "Same asset class", action: "", owner: "", due: "", status: "Open", createdAt: now, updatedAt: now, example: false };
+  return { id: uid(), ref: "", title: "", date: todayISO(), rcaId: "", asset: "", happened: "", expected: "", why: "", lesson: "", photo: "", category: "Maintenance practice", polarity: "Negative", area: "Production", severity: "Medium", applies: "Same asset class", action: "", owner: "", due: "", status: "Open", createdAt: now, updatedAt: now, example: false };
 }
 function blankAlert() {
   const now = new Date().toISOString();
@@ -868,7 +870,7 @@ rcas() {
 lessons() {
   const ls = allLessons(), n = ls.filter(llOpen).length;
   return `<div class="vhead"><div class="grow"><h1>Lessons learned</h1><p class="lede">A lesson is only learned once it is built into a procedure, PM, design standard or training. Track each one until it is embedded.</p></div>
-    <div class="acts"><button class="btn" data-act="ll-xlsx" ${ls.length ? "" : "disabled"}>Excel register</button><button class="btn pri" data-act="new-lesson">${ic("plus")}New lesson</button></div></div>
+    <div class="acts"><button class="btn" data-act="ll-pptx-all" ${ls.length ? "" : "disabled"}>Slides (.pptx)</button><button class="btn" data-act="ll-xlsx" ${ls.length ? "" : "disabled"}>Excel register</button><button class="btn pri" data-act="new-lesson">${ic("plus")}New lesson</button></div></div>
   <div class="filters">${seg("lessons", [["all", "All", ls.length], ["open", "Not embedded", n], ["done", "Embedded", ls.length - n], ["good", "Good practice", ls.filter(l => l.polarity === "Positive").length]])}<input type="search" data-q="lessons" value="${esc(S.q)}" placeholder="Search lessons" aria-label="Search lessons"></div>
   <div class="rlist" id="rlist">${listBody("lessons")}</div>`;
 },
@@ -899,6 +901,9 @@ settings() {
     <label class="f"><span>Contact email or phone</span><input type="text" data-sk="contactEmail" value="${esc(SET.contactEmail)}"></label>
     <div class="f"><span>Logo</span><div class="row">${SET.logo ? `<img src="${SET.logo}" alt="Company logo" style="height:36px;max-width:160px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:6px;padding:2px">` : ""}<button class="btn sm" data-act="set-logo">${SET.logo ? "Replace" : "Upload logo"}</button>${SET.logo ? '<button class="btn sm ghost" data-act="set-logo-clear">Remove</button>' : ""}</div></div>
   </div></section>
+  <section class="panel"><h2>Lessons slide template</h2>
+    <p class="note" style="margin:0 0 12px;max-width:72ch">Lessons export to PowerPoint in your own template: slide 1 is the cover, slide 2 is the lesson layout (title, three boxes and a photo). The template is kept on this device only, so load it once on each device you use.</p>
+    <div class="row">${LTPL ? `<span class="pill green">Loaded</span><span>${esc(LTPL.name)}</span><button class="btn sm" data-act="tpl-add">Replace</button><button class="btn sm ghost" data-act="tpl-clear">Remove</button>` : `<span class="pill grey">No template yet</span><button class="btn sm pri" data-act="tpl-add">Load template (.pptx)</button>`}</div></section>
   <section class="panel"><h2>Backup and restore</h2>
     <p class="note" style="margin:0 0 12px;max-width:72ch">${STANDALONE ? "Everything is saved in this browser on this device (IndexedDB). It does not sync between devices. Download a backup regularly, and use it to move your records to another device." : "Inside Claude, records are saved to your Claude account and sync between your devices. The installed app keeps its own records on each device; move them across with a backup."}${est ? ` Using ${est}.` : ""}</p>
     <div class="row"><button class="btn pri" data-act="backup">Download a full backup (.json)</button><button class="btn" data-act="import-json">Restore from a backup</button></div>
@@ -909,6 +914,10 @@ settings() {
     <p class="note" style="margin:12px 0 0">© ${APP.year} ${APP.owner}. All rights reserved. ${APP.name} is proprietary software; copying or redistribution without permission is not allowed.</p></section>`;
 }
 };
+function lessonsShown() {
+  const q = S.q.trim().toLowerCase(), f = S.filter.lessons, hit = a => !q || a.join(" ").toLowerCase().includes(q);
+  return allLessons().filter(l => f === "all" || (f === "open" ? llOpen(l) : f === "done" ? !llOpen(l) : l.polarity === "Positive")).filter(l => hit([l.ref, l.title, l.lesson, l.category, l.asset, l.happened]));
+}
 function listBody(kind) {
   const q = S.q.trim().toLowerCase(), f = S.filter[kind];
   const hit = s => !q || s.join(" ").toLowerCase().includes(q);
@@ -917,7 +926,7 @@ function listBody(kind) {
     return cs.map(rcaRow).join("") || empty(q ? "No matching RCAs" : f === "closed" ? "No closed RCAs yet" : "No open RCAs", q ? "Try another search." : "Closed RCAs stay here for reference and reporting.", q || f === "closed" ? "" : `<button class="btn pri" data-act="new-rca">New RCA</button>`);
   }
   if (kind === "lessons") {
-    const ls = allLessons().filter(l => f === "all" || (f === "open" ? llOpen(l) : f === "done" ? !llOpen(l) : l.polarity === "Positive")).filter(l => hit([l.ref, l.title, l.lesson, l.category, l.asset, l.happened]));
+    const ls = lessonsShown();
     return ls.map(lessonRow).join("") || empty(q ? "No matching lessons" : "No lessons here", q ? "Try another search." : "Capture a lesson from an RCA, or on its own.", q ? "" : `<button class="btn pri" data-act="new-lesson">New lesson</button>`);
   }
   const al = allAlerts().filter(a => f === "all" || (f === "issued") === (a.status === "Issued")).filter(a => hit([a.ref, a.title, a.location, a.critRisk, a.what]));
@@ -965,8 +974,8 @@ function lessonFromCase(c) {
     title: latent ? trunc(latent.text.split(/,\s*(?:which|so|because|and so)\b|;\s/)[0].replace(/\.$/, ""), 90) : c.meta.title ? "Lesson from " + c.meta.title : "",
     happened: [statementOf(c), cost && !c.problem.impact ? "The cost of failure was " + fmtMoney(cost, k) + (num(c.impact.downtimeHrs) ? " with " + fmtN(num(c.impact.downtimeHrs), 1) + " hours of downtime." : ".") : ""].filter(Boolean).join(" "),
     expected: thing + " should run reliably until its next planned maintenance, with any deterioration found and acted on before it fails.",
-    why: c.roots.map(r => r.type + ": " + sentence(r.text)).join("\n"),
-    lesson: latent ? sentence(latent.text) + (act ? " " + sentence(act.action) : "") : "",
+    why: (c.whys.find(w => w.steps.some(x => x.text)) ? c.whys.find(w => w.steps.some(x => x.text)).steps.filter(x => x.text).map(x => sentence(x.text)) : c.roots.map(r => r.type + ": " + sentence(r.text))).concat(latent && c.whys.length ? ["Root cause: " + sentence(latent.text)] : []).join("\n"),
+    lesson: latent ? sentence(latent.text) : "",
     category: (act && CAT_OF[act.mobj]) || "Maintenance practice",
     polarity: "Negative", applies: latent && latent.type === "Latent / systemic" ? "Site-wide" : "Same asset class",
     action: act ? act.action : "", owner: act ? act.owner : "", due: act ? act.due : "",
@@ -1036,10 +1045,11 @@ function lessonSheet(l) {
     ${rf(l, "date", "Date", { type: "date", half: 1 })}
     ${rf(l, "rcaId", "Linked RCA", { type: "select", options: rcaOptions(), half: 1 })}
     ${l.rcaId && S.data.cases[l.rcaId] ? `<div class="fl row"><button class="btn sm" data-act="ll-fill">Fill from this RCA</button>${S.sample ? '<button class="btn sm" data-act="ll-ai">Draft with Claude</button>' : ""}<span class="note">Replaces the text below with details from the linked RCA.</span></div>` : ""}
-    ${rf(l, "happened", "What happened", { type: "textarea" })}
-    ${rf(l, "expected", "What was expected to happen", { type: "textarea", rows: 2 })}
-    ${rf(l, "why", "Why it was different", { type: "textarea", rows: 2 })}
-    ${rf(l, "lesson", "The lesson (one sentence anyone can act on)", { type: "textarea", rows: 2 })}
+    ${rf(l, "happened", "1 What went wrong?", { type: "textarea" })}
+    ${rf(l, "why", "2 Why did it happen? (one point per line, e.g. your 5 Whys)", { type: "textarea", rows: 5 })}
+    ${rf(l, "lesson", "3 Learning and improvements (the lesson anyone can act on)", { type: "textarea", rows: 3 })}
+    <div class="fl"><span>Photo (shown on the slide)</span><div class="photos">${l.photo ? `<div class="ph"><img src="${l.photo}" alt="Lesson photo"><button class="phx" data-act="ll-photo-del" aria-label="Remove photo">✕</button></div>` : `<button class="btn sm" data-act="photo-add">Add photo</button>`}</div></div>
+    ${rf(l, "expected", "What was expected to happen (for the register)", { type: "textarea", rows: 2 })}
     ${rf(l, "category", "Category", { type: "select", options: LL_CATS, half: 1 })}
     ${rf(l, "polarity", "Type", { type: "select", options: [["Negative", "Negative: prevent it"], ["Positive", "Positive: repeat it"]], half: 1 })}
     ${rf(l, "area", "Impact area", { type: "select", options: LL_AREAS, half: 1 })}
@@ -1052,7 +1062,7 @@ function lessonSheet(l) {
     ${rf(l, "status", "Status", { type: "select", options: LL_STATUS, half: 1 })}
     <p class="note fl half" style="align-self:end;margin:0">Embedded means it is built into a procedure, PM, design standard or training. An email or toolbox talk on its own does not count.</p>
   </div>
-  <footer><button class="btn danger" data-act="del-rec">Delete</button><span class="note">Saves as you type</span><span class="sp"></span><button class="btn" data-act="ll-bulletin">Bulletin (.html)</button>${STANDALONE ? '<button class="btn" data-act="ll-print">Print</button>' : ""}<button class="btn pri" data-act="close-sheet">Done</button></footer></div>`;
+  <footer><button class="btn danger" data-act="del-rec">Delete</button><span class="note">Saves as you type</span><span class="sp"></span><button class="btn" data-act="ll-pptx">Slides (.pptx)</button><button class="btn" data-act="ll-bulletin">Bulletin (.html)</button>${STANDALONE ? '<button class="btn" data-act="ll-print">Print</button>' : ""}<button class="btn pri" data-act="close-sheet">Done</button></footer></div>`;
 }
 function alertSheet(a) {
   return `<div class="sheet wide" role="dialog" aria-modal="true" aria-label="Safety alert"><header><span class="mono">${esc(a.ref)}</span><h2 id="sheetTitle">${esc(a.title || "New safety alert")}</h2><span class="pill ${a.status === "Issued" ? "red" : "amber"}">${a.status === "Issued" ? "Issued " + fmtDate(a.issuedAt) : "Draft"}</span><button class="x" data-act="close-sheet" aria-label="Close">✕</button></header>
@@ -1104,6 +1114,7 @@ function alertText(x) {
 const alertFile = (x, word) => `${word ? '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' : "<!doctype html><html lang=\"en\">"}<head><meta charset="utf-8"><title>${esc(x.ref)} Safety Alert</title><style>@page{size:A4 landscape;margin:10mm}body{margin:24px;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>${alertHTML(x)}</body></html>`;
 const alertName = x => safeName(x.ref + " safety alert " + x.title);
 async function addPhotos(files) {
+  if (S.edit.kind === "lessons") { try { S.data.lessons[S.edit.id].photo = await shrinkImage(files[0], 1400, "image/jpeg", .8); } catch (e) { toast("That image could not be read"); } recEdited(); renderSheet(); return; }
   const a = S.data.alerts[S.edit.id];
   for (const f of [...files].slice(0, 3 - a.photos.length)) {
     try { a.photos.push(await shrinkImage(f, 1000, "image/jpeg", .72)); } catch (e) { toast("That image could not be read"); }
@@ -1117,6 +1128,138 @@ function shrinkImage(f, max, type, q) {
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("bad image")); };
     img.src = url;
   });
+}
+
+/* ---------- lesson slides (PowerPoint, built from your own template) ---------- */
+/* The template is a .pptx: slide 1 is the cover, slide 2 is the lesson layout with a title, three text boxes
+   (1 What went wrong, 2 Why did it happen, 3 Learning and improvements, top to bottom, each starting with its
+   heading line) and a picture or a box named "Photo". It is kept on this device only (IndexedDB), never in the
+   app's code, so a company-branded template stays private. */
+let LTPL = null;  // { name, data: ArrayBuffer }
+async function tplLoad() { try { if (IDB) LTPL = await idbTx("meta", "readonly", st => st.get("lessonTemplate")) || null; } catch (e) { LTPL = null; } }
+async function tplAdd(file) {
+  if (!IDB) { toast("This device cannot store the template"); return; }
+  if (typeof JSZip === "undefined") { toast("The PowerPoint library did not load. Check your connection and reload."); return; }
+  try {
+    const data = await file.arrayBuffer(), z = await JSZip.loadAsync(data);
+    const pres = await z.file("ppt/presentation.xml")?.async("string");
+    if (!pres || (pres.match(/<p:sldId /g) || []).length < 2) throw new Error("needs two slides");
+    LTPL = { name: file.name, data, addedAt: new Date().toISOString() };
+    await idbTx("meta", "readwrite", st => st.put(LTPL, "lessonTemplate"));
+    rerender(); toast("Slide template saved on this device");
+  } catch (e) { console.warn(e); toast("That file is not a PowerPoint template with a cover and a lesson slide"); }
+}
+async function tplClear() { LTPL = null; try { await idbTx("meta", "readwrite", st => st.delete("lessonTemplate")); } catch (e) { } rerender(); }
+function lessonSections(l) {
+  const lines = t => String(t || "").split(/\n+/).map(s => s.trim()).filter(Boolean);
+  const act = l.action ? "Action: " + l.action.replace(/\.?$/, ".") + [l.owner && " Owner: " + l.owner + ".", l.due && " Due: " + fmtDate(l.due) + "."].filter(Boolean).join("") : "";
+  return [lines(l.happened), lines(l.why), [...lines(l.lesson), act].filter(Boolean)];
+}
+const lessonSlideTitle = l => { const r = caseRef(l.rcaId); return (r ? r + " – " : "") + (l.title || "Untitled lesson"); };
+const imgSize = src => new Promise(res => { const i = new Image(); i.onload = () => res([i.naturalWidth, i.naturalHeight]); i.onerror = () => res([4, 3]); i.src = src; });
+async function lessonSlides(list, filename) {
+  if (!list.length) { toast("No lessons to export"); return; }
+  if (!LTPL) { toast("Add your lessons slide template in Settings first"); go("settings"); return; }
+  if (typeof JSZip === "undefined") { toast("The PowerPoint library did not load. Check your connection and reload."); return; }
+  const NS = { p: "http://schemas.openxmlformats.org/presentationml/2006/main", a: "http://schemas.openxmlformats.org/drawingml/2006/main", r: "http://schemas.openxmlformats.org/officeDocument/2006/relationships", pr: "http://schemas.openxmlformats.org/package/2006/relationships", ct: "http://schemas.openxmlformats.org/package/2006/content-types" };
+  const SLIDE_T = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide", IMG_T = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
+  const parse = s => new DOMParser().parseFromString(s, "application/xml"), ser = d => new XMLSerializer().serializeToString(d);
+  const kids = (el, ns, tag) => [...el.childNodes].filter(n => n.namespaceURI === NS[ns] && n.localName === tag);
+  const all = (el, ns, tag) => [...el.getElementsByTagNameNS(NS[ns], tag)];
+  const z = await JSZip.loadAsync(LTPL.data);
+  const read = async p => parse(await z.file(p).async("string"));
+  const pres = await read("ppt/presentation.xml"), presRels = await read("ppt/_rels/presentation.xml.rels"), ct = await read("[Content_Types].xml");
+  const rels = all(presRels.documentElement, "pr", "Relationship");
+  const target = id => { const t = rels.find(r => r.getAttribute("Id") === id).getAttribute("Target"); return t.startsWith("/") ? t.slice(1) : "ppt/" + t; };
+  const relsOf = p => p.replace(/([^/]+)$/, "_rels/$1.rels");
+  const sldIds = all(pres.documentElement, "p", "sldId");
+  const coverPath = target(sldIds[0].getAttributeNS(NS.r, "id")), lessonPath = target(sldIds[1].getAttributeNS(NS.r, "id"));
+  // drop any slides after the first two
+  for (const el of sldIds.slice(2)) {
+    const id = el.getAttributeNS(NS.r, "id"), p = target(id);
+    el.remove(); rels.find(r => r.getAttribute("Id") === id).remove(); z.remove(p); z.remove(relsOf(p));
+    all(ct.documentElement, "ct", "Override").filter(o => o.getAttribute("PartName") === "/" + p).forEach(o => o.remove());
+  }
+  // shapes: text runs and paragraphs
+  const name = sp => (sp.getElementsByTagNameNS(NS.p, "cNvPr")[0] || {}).getAttribute?.("name") || "";
+  const phType = sp => { const ph = sp.getElementsByTagNameNS(NS.p, "ph")[0]; return ph ? (ph.getAttribute("type") || "body") : ""; };
+  const off = sp => { const o = sp.getElementsByTagNameNS(NS.a, "off")[0]; return o ? +o.getAttribute("y") : 0; };
+  const txt = sp => all(sp, "a", "t").map(t => t.textContent).join(" ").trim();
+  function setLines(sp, lines, keepHeading, size) {
+    const tb = sp.getElementsByTagNameNS(NS.p, "txBody")[0]; if (!tb) return;
+    const ps = kids(tb, "a", "p"); if (!ps.length) return;
+    const proto = (keepHeading && ps[1] ? ps[1] : ps[0]).cloneNode(true);
+    ps.slice(keepHeading ? 1 : 0).forEach(p => p.remove());
+    for (const ln of lines) {
+      const q = proto.cloneNode(true);
+      [...kids(q, "a", "fld"), ...kids(q, "a", "br")].forEach(n => n.remove());
+      let rs = kids(q, "a", "r");
+      if (!rs.length) { const r = q.ownerDocument.createElementNS(NS.a, "a:r"); r.appendChild(q.ownerDocument.createElementNS(NS.a, "a:t")); const end = kids(q, "a", "endParaRPr")[0]; q.insertBefore(r, end || null); rs = [r]; }
+      rs.slice(1).forEach(r => r.remove());
+      kids(rs[0], "a", "t")[0].textContent = ln;
+      tb.appendChild(q);
+    }
+    if (size) all(tb, "a", "rPr").concat(all(tb, "a", "endParaRPr")).forEach(r => r.setAttribute("sz", String(Math.round(size * 100))));
+  }
+  // cover: date, and who prepared each RCA
+  const cover = await read(coverPath), cshapes = all(cover.documentElement, "p", "sp");
+  const dt = cshapes.find(sp => phType(sp) === "dt"); if (dt) setLines(dt, [fmtDate(todayISO())], false);
+  const label = cshapes.find(sp => /prepared/i.test(txt(sp)));
+  const below = cshapes.filter(sp => sp !== label && sp !== dt && phType(sp) !== "title" && phType(sp) !== "ctrTitle" && label && off(sp) > off(label)).sort((a, b) => off(a) - off(b))[0];
+  if (below) {
+    const by = [...new Set(list.map(l => { const c = S.data.cases[l.rcaId]; return c ? c.meta.reportId + ": " + (c.meta.author || "–") : l.ref + (l.owner ? ": " + l.owner : ""); }))];
+    setLines(below, by, false);
+  }
+  z.file(coverPath, ser(cover));
+  // lesson slides: one per lesson
+  const lessonXml = await z.file(lessonPath).async("string"), lessonRelsXml = await z.file(relsOf(lessonPath)).async("string");
+  const ns = Math.max(0, ...Object.keys(z.files).map(f => +(f.match(/^ppt\/slides\/slide(\d+)\.xml$/) || [])[1] || 0));
+  let maxSld = Math.max(255, ...all(pres.documentElement, "p", "sldId").map(e => +e.getAttribute("id")));
+  const lst = all(pres.documentElement, "p", "sldIdLst")[0];
+  if (!all(ct.documentElement, "ct", "Default").some(d => d.getAttribute("Extension") === "jpeg")) { const d = ct.createElementNS(NS.ct, "Default"); d.setAttribute("Extension", "jpeg"); d.setAttribute("ContentType", "image/jpeg"); ct.documentElement.insertBefore(d, ct.documentElement.firstChild); }
+  for (let i = 0; i < list.length; i++) {
+    const l = list[i], doc = parse(lessonXml), srels = parse(lessonRelsXml);
+    const path = i === 0 ? lessonPath : "ppt/slides/slide" + (ns + i) + ".xml";
+    if (i > 0) all(srels.documentElement, "pr", "Relationship").filter(r => /notesSlide|comments/.test(r.getAttribute("Type"))).forEach(r => r.remove());
+    const tree = all(doc.documentElement, "p", "spTree")[0], shapes = kids(tree, "p", "sp");
+    const title = shapes.find(sp => ["title", "ctrTitle"].includes(phType(sp))); if (title) setLines(title, [lessonSlideTitle(l)], false);
+    const photo = kids(tree, "p", "pic")[0] || shapes.find(sp => /^photo$/i.test(name(sp)));
+    const boxes = shapes.filter(sp => sp !== photo && !phType(sp) && sp.getElementsByTagNameNS(NS.p, "txBody").length).sort((a, b) => off(a) - off(b)).slice(0, 3);
+    if (boxes.length === 3) {
+      // size the text so the three boxes fit between the first box and the footer
+      const xf = sp => sp.getElementsByTagNameNS(NS.a, "xfrm")[0], ext = sp => xf(sp).getElementsByTagNameNS(NS.a, "ext")[0], o = sp => xf(sp).getElementsByTagNameNS(NS.a, "off")[0];
+      const top = +o(boxes[0]).getAttribute("y"), bottom = 6380000, gap = 45720, wpt = +ext(boxes[0]).getAttribute("cx") / 12700 - 14;
+      const secs = lessonSections(l);
+      const est = (lines, s) => { const cpl = wpt / (s * .47); const n = 1 + lines.reduce((a, t) => a + Math.max(1, Math.ceil(t.length / cpl)), 0); return n * s * 1.2 + (lines.length + 1) * s * .85 + 10; };
+      const avail = (bottom - top - 2 * gap) / 12700;
+      let size = 12; while (size > 8 && secs.reduce((a, s) => a + est(s, size), 0) > avail) size -= .5;
+      const hs = secs.map(s => est(s, size)), extra = Math.max(0, (avail - hs.reduce((a, b) => a + b, 0)) / 3);
+      let y = top;
+      boxes.forEach((sp, k) => { setLines(sp, secs[k].length ? secs[k] : [""], true, size); const h = Math.round((hs[k] + extra) * 12700); o(sp).setAttribute("y", String(Math.round(y))); ext(sp).setAttribute("cy", String(h)); y += h + gap; });
+    }
+    if (photo) {
+      if (l.photo) {
+        const media = "ppt/media/lesson-photo-" + (i + 1) + ".jpeg", rid = "rIdLessonPhoto";
+        z.file(media, l.photo.split(",")[1], { base64: true });
+        const rel = srels.createElementNS(NS.pr, "Relationship"); rel.setAttribute("Id", rid); rel.setAttribute("Type", IMG_T); rel.setAttribute("Target", "../media/lesson-photo-" + (i + 1) + ".jpeg"); srels.documentElement.appendChild(rel);
+        const b = photo.getElementsByTagNameNS(NS.a, "xfrm")[0], bo = b.getElementsByTagNameNS(NS.a, "off")[0], be = b.getElementsByTagNameNS(NS.a, "ext")[0];
+        const [bx, by, bw, bh] = [+bo.getAttribute("x"), +bo.getAttribute("y"), +be.getAttribute("cx"), +be.getAttribute("cy")];
+        const [iw, ih] = await imgSize(l.photo), sc = Math.min(bw / iw, bh / ih), w = Math.round(iw * sc), h = Math.round(ih * sc);
+        const maxId = Math.max(1, ...all(doc.documentElement, "p", "cNvPr").map(e => +e.getAttribute("id") || 0));
+        const pic = parse(`<p:pic xmlns:p="${NS.p}" xmlns:a="${NS.a}" xmlns:r="${NS.r}"><p:nvPicPr><p:cNvPr id="${maxId + 1}" name="Lesson photo"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${bx + Math.round((bw - w) / 2)}" y="${by + Math.round((bh - h) / 2)}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`).documentElement;
+        tree.replaceChild(doc.importNode(pic, true), photo);
+      } else photo.remove();
+    }
+    z.file(path, ser(doc)); z.file(relsOf(path), ser(srels));
+    if (i > 0) {
+      const o = ct.createElementNS(NS.ct, "Override"); o.setAttribute("PartName", "/" + path); o.setAttribute("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"); ct.documentElement.appendChild(o);
+      const rid = "rIdLesson" + i, r = presRels.createElementNS(NS.pr, "Relationship"); r.setAttribute("Id", rid); r.setAttribute("Type", SLIDE_T); r.setAttribute("Target", "slides/slide" + (ns + i) + ".xml"); presRels.documentElement.appendChild(r);
+      const s = pres.createElementNS(NS.p, "p:sldId"); s.setAttribute("id", String(++maxSld)); s.setAttributeNS(NS.r, "r:id", rid); lst.appendChild(s);
+    }
+  }
+  z.file("ppt/presentation.xml", ser(pres)); z.file("ppt/_rels/presentation.xml.rels", ser(presRels)); z.file("[Content_Types].xml", ser(ct));
+  const blob = await z.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", compression: "DEFLATE" });
+  offer(filename, blob);
 }
 
 /* ---------- lesson outputs ---------- */
@@ -1783,6 +1926,11 @@ document.addEventListener("click", e => {
     case "ll-fill": { const r = rec(), c2 = S.data.cases[r.rcaId]; if (!c2) break; const f = lessonFromCase(c2); delete f.date; Object.assign(r, f); recEdited(); renderSheet(); toast("Filled from " + c2.meta.reportId); break; }
     case "ll-ai": aiLesson(); break;
     case "ll-xlsx": exportLessonsXlsx(); break;
+    case "ll-pptx": { const l = rec(); flushSaves(); lessonSlides([l], safeName(l.ref + " lesson " + l.title) + ".pptx"); break; }
+    case "ll-pptx-all": lessonSlides(lessonsShown(), "Lessons-learned-" + todayISO() + ".pptx"); break;
+    case "ll-photo-del": rec().photo = ""; recEdited(); renderSheet(); break;
+    case "tpl-add": $("#fileTpl").click(); break;
+    case "tpl-clear": tplClear(); break;
     case "photo-add": $("#filePhoto").click(); break;
     case "photo-del": rec().photos.splice(i, 1); recEdited(); renderSheet(); break;
     case "sa-copy": Promise.resolve().then(() => navigator.clipboard.writeText(alertText(rec()))).then(() => toast("Alert copied. Paste it into an email or message.")).catch(() => toast("Copying is blocked here. Use a download instead.")); break;
@@ -1847,6 +1995,7 @@ $("#fileSetLogo").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   try { SET.logo = await shrinkImage(f, 400, "image/png"); saveSettings(); rerender(); } catch (err) { toast("That image could not be read"); }
 });
+$("#fileTpl").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) tplAdd(f); });
 $("#filePhoto").addEventListener("change", e => { const fs = e.target.files; if (fs && fs.length && S.edit) addPhotos(fs); e.target.value = ""; });
 window.addEventListener("pagehide", flushSaves);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSaves(); });
@@ -1856,6 +2005,7 @@ async function boot() {
   $("#lists").innerHTML = Object.entries(LISTS).map(([id, items]) => `<datalist id="${id}">${items.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("");
   document.querySelector(".appname").innerHTML = MARK() + `<div>${APP.name}<span class="tag">${APP.tagline}</span></div>`;
   await localInit();
+  await tplLoad();
   KINDS.forEach(k => Object.values(LOCAL[k]).forEach(r => { if (r && r.id) S.data[k][r.id] = NORM[k](r); }));
   if (LOCAL.settings) Object.assign(SET, LOCAL.settings);
   if (LOCAL.last && S.data.cases[LOCAL.last]) S.cur = S.data.cases[LOCAL.last];

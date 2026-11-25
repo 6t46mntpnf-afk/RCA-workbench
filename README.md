@@ -16,7 +16,7 @@ Root cause analysis, lessons learned and safety alerts in one app. It opens on a
   9. Customer report (HTML, print to PDF, Excel, case file)
 
   Each RCA has a status (Draft, In progress, Actions open, Closed).
-- **Lessons learned** record what happened, what was expected, why it differed, the lesson, its category, impact, applicability, action and status (Open, In progress, Embedded, Verified). Exports are a one-page bulletin and an Excel register.
+- **Lessons learned** record what happened, what was expected, why it differed, the lesson, its category, impact, applicability, action and status (Open, In progress, Embedded, Verified). Exports are PowerPoint slides in your own lessons template (cover plus one slide per lesson, with a photo), a one-page bulletin and an Excel register. Load the template once per device in **Settings › Lessons slide template**; it is stored on the device only, so a company-branded template never goes into this repository.
 - **Safety alerts** use Daniel's one-page client layout:
   - critical risk
   - potential and actual consequence
@@ -61,6 +61,7 @@ They do not sync between devices. Use **Settings › Download a full backup** to
 | `manifest.webmanifest` | App name, colours and icons used when it is installed |
 | `icons/` | App icons (the Reliability + mark) |
 | `vendor/xlsx.full.min.js` | SheetJS 0.18.5, reads CSV/XLSX and writes Excel exports (Apache 2.0, see `vendor/xlsx-LICENSE.txt`) |
+| `vendor/jszip.min.js` | JSZip 3.10.1, builds the PowerPoint slides from your template (MIT, see `vendor/jszip-LICENSE.md`) |
 | `vendor/manrope-latin-wght-normal.woff2` | Manrope typeface (SIL Open Font Licence, see `vendor/manrope-OFL.txt`) |
 
 ### Inside `index.html`

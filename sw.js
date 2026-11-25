@@ -1,11 +1,12 @@
 // Reliability + service worker: makes the app work offline.
 // On every release, change CACHE (e.g. "rca-v1.1.0") so installed apps pick up the new files.
-const CACHE = "rca-v2.0.2";
+const CACHE = "rca-v2.1.0";
 const SHELL = [
   "./",
   "index.html",
   "manifest.webmanifest",
   "vendor/xlsx.full.min.js",
+  "vendor/jszip.min.js",
   "vendor/manrope-latin-wght-normal.woff2",
   "icons/icon-192.png",
   "icons/icon-512.png",
