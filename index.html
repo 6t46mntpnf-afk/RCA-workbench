@@ -195,6 +195,58 @@ main.view { min-width: 0; padding-block: 24px 48px; padding-left: max(18px, env(
 .vtip { position: fixed; z-index: 90; pointer-events: none; background: var(--solid); color: var(--solid-fg); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; line-height: 1.35; box-shadow: 0 6px 20px rgba(0,0,0,.18); max-width: 240px; opacity: 0; transition: opacity .1s }
 .vtip.on { opacity: 1 }
 @media (max-width: 980px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) } .charts { grid-template-columns: minmax(0, 1fr) } .charts .w2 { grid-column: auto } }
+/* dashboard v2.5: command-centre band, insights, cost trend, heat map */
+.hero { --fg: #F6F1EB; --muted: rgba(246,241,235,.64); --surface: #211B17; --surface-2: rgba(255,255,255,.10); --line: rgba(255,255,255,.12); --hair: rgba(255,255,255,.08);
+  --s1: #EBA273; --accent: #EBA273; --accent-soft: rgba(235,162,115,.18); --red: #FF8F80; --red-soft: rgba(255,143,128,.16); --green: #7FD99E; --green-soft: rgba(127,217,158,.15);
+  position: relative; overflow: hidden; color: var(--fg); border-radius: 24px; padding: 24px; margin-bottom: 16px;
+  background: radial-gradient(90% 120% at 100% 0%, rgba(214,120,62,.42), transparent 55%), radial-gradient(60% 90% at 0% 100%, rgba(60,110,190,.20), transparent 60%), linear-gradient(150deg, #241C17, #120F0D 70%);
+  box-shadow: 0 18px 40px -18px rgba(20,12,6,.55) }
+.hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(180deg, #000, transparent 75%) }
+.hero > * { position: relative; z-index: 1 }
+.hero .dhead { margin-bottom: 20px }
+.hero h1 { color: var(--fg); font-size: 30px }
+.hero .lede { color: var(--muted) }
+.hero .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px }
+.hero .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(127,217,158,.18) }
+.hero .qchip { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.12); box-shadow: none; color: var(--fg) }
+.hero .qchip:hover { background: rgba(255,255,255,.13); border-color: var(--accent) }
+.hero .kpi { background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.09); box-shadow: none; backdrop-filter: blur(6px); padding: 18px }
+.hero .kpi:hover { background: rgba(255,255,255,.10) }
+.hero .kpi .v { font-size: 40px }
+.hero .kpi .ico { width: 40px; height: 40px; border-radius: 12px }
+.hero .kpi .mini { width: 110px; height: 40px }
+.hero .kpi .ring { width: 52px; height: 52px }
+.pill { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--muted); white-space: nowrap }
+.pill.good { color: var(--green); background: var(--green-soft) }
+.pill.bad { color: var(--red); background: var(--red-soft) }
+.ins { display: flex; flex-direction: column; gap: 8px }
+.ins button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid var(--hair); border-radius: 14px; background: var(--bg); padding: 11px 12px; text-align: left; color: var(--fg); font-size: 13.5px; line-height: 1.4; width: 100% }
+.ins button:hover { border-color: var(--line); background: var(--surface-2) }
+.ins .ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue) }
+.ins .ico svg { width: 18px; height: 18px }
+.ins .bad .ico { background: var(--red-soft); color: var(--red) }
+.ins .warn .ico { background: var(--amber-soft); color: var(--amber) }
+.ins .good .ico { background: var(--green-soft); color: var(--green) }
+.ins .go { color: var(--muted); font-size: 18px; line-height: 1 }
+.ins b { font-weight: 800 }
+.panel.lift { box-shadow: var(--shadow); }
+.bigstat { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: -2px 0 8px }
+.bigstat .v { font-size: 26px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.bigstat .s { font-size: 12.5px; color: var(--muted) }
+.viz .area-dot { fill: var(--surface); stroke: var(--s1); stroke-width: 2.5 }
+.viz g.pt:hover .area-dot { r: 6 }
+.viz .vline { stroke: var(--line); stroke-dasharray: 3 4; opacity: 0 }
+.viz g.pt:hover .vline { opacity: 1 }
+.heat { display: grid; grid-template-columns: minmax(64px, max-content) repeat(12, minmax(0, 1fr)); gap: 4px; align-items: center; font-size: 12px }
+.heat .hl { font-weight: 700; padding-right: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px }
+.heat .hm { text-align: center; color: var(--muted); font-size: 11px; padding-top: 2px }
+.heat .c { height: 28px; border-radius: 6px; background: var(--surface-2); position: relative; display: grid; place-items: center; font-weight: 800; font-size: 11px; color: #fff }
+.heat .c.on { background: color-mix(in srgb, var(--s1) calc(var(--a) * 100%), var(--surface-2)) }
+.heat .c.on:hover { outline: 2px solid var(--fg); outline-offset: 1px }
+.heat-key { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; color: var(--muted) }
+.heat-key i { width: 18px; height: 10px; border-radius: 3px; display: block }
+@media (max-width: 980px) { .hero { padding: 18px; border-radius: 20px } .hero .kpi .v { font-size: 32px } .hero .kpi .mini { width: 84px } }
+@media (max-width: 560px) { .heat { grid-template-columns: minmax(52px, max-content) repeat(12, minmax(0, 1fr)); gap: 2px } .heat .c { height: 22px; border-radius: 4px; font-size: 0 } .heat .hm { font-size: 9px } .hero h1 { font-size: 24px } .hero .kpis { gap: 10px } .hero .kpi { padding: 14px; gap: 8px } .kpi .top { flex-wrap: wrap; gap: 8px } .kpi .top .pill { order: 3; margin-left: 0 } .hero .kpi .ico { width: 32px; height: 32px; border-radius: 10px } .hero .kpi .v { font-size: 28px } .hero .kpi .mini { display: none } .hero .kpi .ring { width: 40px; height: 40px } .kpi .s { flex-wrap: wrap } }
 @media (max-width: 560px) { .kpi { padding: 13px } .kpi .v { font-size: 26px } .kpi .mini { width: 64px } .qchip { padding: 7px 12px 7px 8px; font-size: 13px } }
 .panel { background: var(--surface); border-radius: 14px; padding: 16px; min-width: 0; box-shadow: var(--shadow) }
 .panel h2 { font-weight: 800; font-size: 15.5px; letter-spacing: -.01em; margin: 0 0 12px; display: flex; align-items: center; gap: 8px }
@@ -644,7 +696,7 @@ function stepCount(c, id) {
 }
 
 /* ---------- app identity ---------- */
-const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.4.1", owner: "Daniel", year: 2026 };
+const APP = { name: "Reliability +", tagline: "Find it. Fix it. For good.", version: "2.5.0", owner: "Daniel", year: 2026 };
 const DEFAULT_BRAND = "#1A1A1A";
 const MARK = () => `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--mk-bg)"/><g fill="none" stroke-width="4.5" stroke-linecap="round"><path d="M32 12v20" style="stroke:var(--mk-fg)"/><path d="M32 32c0 8-9 9-12 18M32 32c0 8 9 9 12 18M32 32v19" style="stroke:var(--mk-cu)"/></g><circle cx="32" cy="13" r="5" style="fill:var(--mk-fg)"/></svg>`;
 const ICON = {
@@ -932,12 +984,14 @@ function dashData() {
   const act = { done: 0, open: 0, over: 0 };
   cs.forEach(c => c.capa.forEach(a => { if (ACTION_DONE.includes(a.status)) act.done++; else if (a.due && a.due < t) act.over++; else act.open++; }));
   const roots = ROOT_TYPES.map(k => ({ k, n: cs.reduce((s, c) => s + c.roots.filter(r => r.type === k && r.text).length, 0) }));
-  const am = {}; cs.forEach(c => { const k = c.meta.asset || c.meta.assetDesc; if (!k) return; const o = am[k] || (am[k] = { k, n: 0, cost: 0 }); o.n++; o.cost += costOf(c).total; });
-  const assets = Object.values(am).sort((a, b) => b.cost - a.cost || b.n - a.n).slice(0, 5);
+  const am = {}; cs.forEach(c => { const k = c.meta.asset || c.meta.assetDesc; if (!k) return; const o = am[k] || (am[k] = { k, n: 0, cost: 0, m: Array(12).fill(0), mc: Array(12).fill(0) }), cc = costOf(c).total; o.n++; o.cost += cc;
+    const mi = months.findIndex(x => x.k === String(c.meta.eventDate || c.createdAt || "").slice(0, 7)); if (mi >= 0) { o.m[mi]++; o.mc[mi] += cc; } });
+  const assetsAll = Object.values(am), assets = [...assetsAll].sort((a, b) => b.cost - a.cost || b.n - a.n).slice(0, 5);
+  const heat = [...assetsAll].filter(a => a.m.some(Boolean)).sort((a, b) => b.n - a.n || b.cost - a.cost).slice(0, 6);
   const cm = {}; allLessons().forEach(l => { cm[l.category] = (cm[l.category] || 0) + 1; });
   const cats = Object.entries(cm).map(([k, n]) => ({ k, n })).sort((a, b) => b.n - a.n).slice(0, 5);
   const cur = (cs.find(c => c.impact.currency) || { impact: {} }).impact.currency || "$";
-  return { cs, months, act, roots, assets, cats, cur };
+  return { cs, months, act, roots, assets, assetsAll, heat, cats, cur };
 }
 function vizColumns(ms, cur) {
   const W = 600, H = 190, L = 28, B = 22, T = 10, max = Math.max(1, ...ms.map(m => m.n)), top = Math.max(2, Math.ceil(max / 2) * 2);
@@ -974,6 +1028,47 @@ function vizMix(parts) {
   return `<div class="mix" role="img" aria-label="${esc(parts.map(p => p.k + " " + p.n).join(", "))}">${parts.filter(p => p.n).map(p => `<i style="--c:${p.c};flex:${p.n}" data-tip="${tipA(p.k + ": " + p.n + " (" + Math.round(100 * p.n / tot) + "%)")}"></i>`).join("")}</div>
   <div class="legend">${parts.map(p => `<span style="--c:${p.c}"><i></i>${esc(p.k)} <b>${p.n}</b> · ${Math.round(100 * p.n / tot)}%</span>`).join("")}</div>`;
 }
+function deltaPill(cur, prev, lowerIsGood, title) {
+  if (!cur && !prev) return "";
+  if (!prev) return `<span class="pill ${lowerIsGood ? "bad" : "good"}" title="${esc(title)}">New</span>`;
+  const p = Math.round(100 * (cur - prev) / prev); if (!p) return `<span class="pill" title="${esc(title)}">Steady</span>`;
+  const good = lowerIsGood ? p < 0 : p > 0;
+  return `<span class="pill ${good ? "good" : "bad"}" title="${esc(title)}">${p > 0 ? "▲" : "▼"} ${Math.abs(p)}%</span>`;
+}
+function vizArea(ms, cur) {
+  const W = 600, H = 236, L = 46, B = 22, T = 12, vals = ms.map(m => m.cost), max = Math.max(1, ...vals);
+  const step = Math.pow(10, Math.floor(Math.log10(max))), top = Math.ceil(max / step) * step || 1, n = ms.length;
+  const x = i => L + 8 + (W - L - 16) * i / Math.max(1, n - 1), y = v => T + (H - T - B) * (1 - v / top);
+  const pts = vals.map((v, i) => [x(i), y(v)]);
+  let d = ""; pts.forEach(([px, py], i) => { if (!i) { d = `M${px},${py}`; return; } const [qx, qy] = pts[i - 1], cx = (qx + px) / 2; d += ` C${cx},${qy} ${cx},${py} ${px},${py}`; });
+  let g = [0, top / 2, top].map(v => `<line class="grid" x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${fmtK(v, cur)}</text>`).join("");
+  g += `<defs><linearGradient id="gArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--s1)" stop-opacity=".38"/><stop offset="1" stop-color="var(--s1)" stop-opacity="0"/></linearGradient></defs>`;
+  g += `<path d="${d} L${x(n - 1)},${H - B} L${x(0)},${H - B} Z" fill="url(#gArea)"/><path d="${d}" fill="none" stroke="var(--s1)" stroke-width="3" stroke-linecap="round"/>`;
+  g += ms.map((m, i) => { const tip = `${m.lab} ${m.y}\nCost of failure ${fmtMoney(m.cost, cur)}\n${m.n} RCA${m.n === 1 ? "" : "s"}${m.hrs ? " · " + fmtN(m.hrs, 1) + " h downtime" : ""}`;
+    const bw = (W - L) / n; return `<g class="pt" data-tip="${tipA(tip)}"><rect class="hit" x="${x(i) - bw / 2}" y="${T}" width="${bw}" height="${H - T - B}"/><line class="vline" x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H - B}"/>${m.cost ? `<circle class="area-dot" cx="${x(i)}" cy="${y(m.cost)}" r="4"/>` : ""}<text x="${x(i)}" y="${H - 5}" text-anchor="middle">${m.lab}</text></g>`; }).join("");
+  return `<svg class="viz" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cost of failure per month, last 12 months">${g}<line class="base" x1="${L}" x2="${W}" y1="${H - B}" y2="${H - B}"/></svg>`;
+}
+function vizHeat(D) {
+  const rows = D.heat, max = Math.max(1, ...rows.flatMap(r => r.m));
+  return `<div class="heat" role="img" aria-label="RCAs by asset and month"><span></span>${D.months.map(m => `<span class="hm">${m.lab.slice(0, 1)}</span>`).join("")}
+    ${rows.map(r => `<span class="hl" title="${esc(r.k)}">${esc(r.k)}</span>${r.m.map((v, i) => `<span class="c${v ? " on" : ""}" style="--a:${(.35 + .65 * v / max).toFixed(2)}" data-tip="${tipA(r.k + "\n" + D.months[i].lab + " " + D.months[i].y + "\n" + v + " RCA" + (v === 1 ? "" : "s") + (r.mc[i] ? " · " + fmtMoney(r.mc[i], D.cur) : ""))}">${v || ""}</span>`).join("")}`).join("")}</div>
+    <div class="heat-key">Fewer <i style="background:var(--surface-2)"></i><i style="background:color-mix(in srgb, var(--s1) 45%, var(--surface-2))"></i><i style="background:color-mix(in srgb, var(--s1) 75%, var(--surface-2))"></i><i style="background:var(--s1)"></i> More RCAs</div>`;
+}
+function insights(D, od, ls, al) {
+  const out = [], t = todayISO(), plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+  const rep = D.assetsAll.filter(a => a.n >= 2).sort((a, b) => b.cost - a.cost || b.n - a.n)[0];
+  if (rep) out.push({ tone: "bad", icon: "wrench", act: `data-act="nav" data-view="rcas"`, html: `<b>${esc(rep.k)}</b> has failed ${rep.n} times${rep.cost ? `, costing <b>${fmtK(rep.cost, D.cur)}</b>` : ""}. Make it your next reliability focus.` });
+  if (od.length) { const old = od.reduce((a, x) => (!a || x.due < a.due ? x : a), null), days = Math.max(1, Math.round((Date.parse(t) - Date.parse(old.due)) / 864e5)), ref = old.type === "lesson" ? old.l.ref : old.c.meta.reportId;
+    out.push({ tone: "bad", icon: "clock", act: `data-act="jump" data-to="pOverdue"`, html: `<b>${plural(od.length, "action")}</b> overdue. The oldest is <b>${days} days</b> late${ref ? " (" + esc(ref) + ")" : ""}.` }); }
+  const c6 = D.months.slice(-6).reduce((s, m) => s + m.cost, 0), p6 = D.months.slice(0, 6).reduce((s, m) => s + m.cost, 0);
+  if (p6 && c6 !== p6) { const p = Math.round(100 * (c6 - p6) / p6); out.push({ tone: p < 0 ? "good" : "bad", icon: "cash", act: `data-act="jump" data-to="pTrend"`, html: `Cost of failure is <b>${p < 0 ? "down" : "up"} ${Math.abs(p)}%</b> on the previous 6 months (${fmtK(c6, D.cur)} against ${fmtK(p6, D.cur)}).` }); }
+  const rt = D.roots.reduce((s, r) => s + r.n, 0), lat = (D.roots.find(r => /Latent/.test(r.k)) || { n: 0 }).n;
+  if (rt) { const p = Math.round(100 * lat / rt); out.push(p < 25 ? { tone: "warn", icon: "layers", act: `data-act="nav" data-view="rcas"`, html: `Only <b>${p}%</b> of root causes are latent (system) causes. Keep asking why to find the system gap.` } : { tone: "good", icon: "layers", act: `data-act="nav" data-view="rcas"`, html: `<b>${p}%</b> of root causes are latent (system) causes, so the RCAs reach the system gaps.` }); }
+  const lo = ls.filter(llOpen).length; if (lo) out.push({ tone: "info", icon: "bulb", act: `data-act="nav" data-view="lessons"`, html: `<b>${plural(lo, "lesson")}</b> not embedded yet. Share them so they stick.` });
+  const dr = al.filter(a => a.status !== "Issued").length; if (dr) out.push({ tone: "warn", icon: "alert", act: `data-act="nav" data-view="alerts"`, html: `<b>${plural(dr, "safety alert")}</b> still in draft.` });
+  if (!out.length) out.push({ tone: "good", icon: "check", act: `data-act="nav" data-view="rcas"`, html: `<b>All on track.</b> Nothing needs attention right now.` });
+  return `<div class="ins">${out.slice(0, 5).map(x => `<button class="${x.tone}" ${x.act}><span class="ico">${ic(x.icon)}</span><span>${x.html}</span><span class="go">›</span></button>`).join("")}</div>`;
+}
 function activityFeed() {
   const items = [...allCases().map(c => ({ at: c.updatedAt, html: `<button data-act="open-rca" data-id="${esc(c.id)}"><span class="ico cu">${ic("rca")}</span><span><span class="t">${esc(c.meta.title || c.meta.reportId || "Untitled RCA")}</span><span class="m">${esc(c.meta.reportId)} · ${esc(rcaStatus(c))}</span></span>` })),
     ...allLessons().map(l => ({ at: l.updatedAt, html: `<button data-act="open-lesson" data-id="${esc(l.id)}"><span class="ico amber">${ic("bulb")}</span><span><span class="t">${esc(l.title || "Untitled lesson")}</span><span class="m">${esc(l.ref)} · ${esc(l.status)}</span></span>` })),
@@ -992,20 +1087,26 @@ const VIEWS = {
 dashboard() {
   const D = dashData(), cs = D.cs, open = cs.filter(isOpen), od = overdueActions(), ls = allLessons(), al = allAlerts();
   const emb = ls.filter(l => !llOpen(l)).length, drafts = al.filter(a => a.status !== "Issued").length;
-  const last6 = D.months.slice(-6).map(m => m.n), cost12 = D.months.reduce((s, m) => s + m.cost, 0), hrs12 = D.months.reduce((s, m) => s + m.hrs, 0);
-  const actTot = D.act.done + D.act.open + D.act.over, h = new Date().getHours();
+  const sum = (arr, f) => arr.reduce((s, m) => s + f(m), 0), c6 = D.months.slice(-6), p6 = D.months.slice(0, 6);
+  const cost12 = sum(D.months, m => m.cost), hrs12 = sum(D.months, m => m.hrs), new6 = sum(c6, m => m.n);
+  const actTot = D.act.done + D.act.open + D.act.over, h = new Date().getHours(), donePct = actTot ? Math.round(100 * D.act.done / actTot) : 0;
+  const oldest = od.length ? Math.max(1, Math.round((Date.parse(todayISO()) - Date.parse(od.reduce((a, x) => (!a || x.due < a ? x.due : a), ""))) / 864e5)) : 0;
   const panel = (icon, title, sub, body, cls, id) => `<section class="panel ${cls || ""}"${id ? ` id="${id}"` : ""}><div class="ph2"><span class="ib">${ic(icon)}</span>${title}${sub ? `<span class="sub">${sub}</span>` : ""}</div>${body}</section>`;
-  return `<div class="dhead"><div><h1>${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}</h1><p class="lede" style="margin:4px 0 0">${fmtDate(todayISO())}${SET.company ? " · " + esc(SET.company) : ""}</p></div>
+  return `<section class="hero"><div class="dhead"><div><div class="eyebrow"><i></i>Reliability command centre</div><h1>${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}</h1><p class="lede" style="margin:4px 0 0">${fmtDate(todayISO())}${SET.company ? " · " + esc(SET.company) : ""}</p></div>
     <div class="qchips"><button class="qchip" data-act="new-rca"><span class="b">${ic("rca")}</span>RCA</button><button class="qchip" data-act="new-lesson"><span class="b">${ic("bulb")}</span>Lessons learnt</button><button class="qchip hot" data-act="new-alert"><span class="b">${ic("alert")}</span>Safety alert</button></div></div>
   <div class="kpis">
-    <button class="kpi" data-act="nav" data-view="rcas" data-f="open"><span class="top"><span class="ico">${ic("rca")}</span><span class="k">Open RCAs</span></span><span class="row2"><span class="v">${open.length}</span>${vizSpark(last6)}</span><span class="s"><b>${last6.reduce((a, b) => a + b, 0)}</b> new in 6 months</span></button>
-    <button class="kpi ${od.length ? "bad" : "good"}" data-act="jump" data-to="pOverdue"><span class="top"><span class="ico">${ic(od.length ? "clock" : "check")}</span><span class="k">Overdue actions</span></span><span class="row2"><span class="v">${od.length}</span>${vizRing(actTot ? D.act.done / actTot : 0, "var(--green)")}</span><span class="s"><b>${actTot ? Math.round(100 * D.act.done / actTot) : 0}%</b> of ${actTot} actions done</span></button>
-    <button class="kpi" data-act="jump" data-to="pTrend"><span class="top"><span class="ico">${ic("cash")}</span><span class="k">Cost of failure · 12 months</span></span><span class="row2"><span class="v">${fmtK(cost12, D.cur)}</span></span><span class="s"><b>${fmtN(hrs12, 0)} h</b> downtime</span></button>
-    <button class="kpi" data-act="nav" data-view="lessons"><span class="top"><span class="ico">${ic("bulb")}</span><span class="k">Lessons embedded</span></span><span class="row2"><span class="v">${emb}<span style="font-size:16px;color:var(--muted);font-weight:700"> / ${ls.length}</span></span>${vizRing(ls.length ? emb / ls.length : 0, "var(--s1)")}</span><span class="s">${ic("alert")}<b>${al.length}</b> alerts · ${drafts} draft${drafts === 1 ? "" : "s"}</span></button>
+    <button class="kpi" data-act="nav" data-view="rcas" data-f="open"><span class="top"><span class="ico">${ic("rca")}</span><span class="k">Open RCAs</span>${deltaPill(new6, sum(p6, m => m.n), true, "New RCAs, last 6 months against the 6 before")}</span><span class="row2"><span class="v">${open.length}</span>${vizSpark(D.months.map(m => m.n))}</span><span class="s"><b>${new6}</b> new in 6 months</span></button>
+    <button class="kpi ${od.length ? "bad" : "good"}" data-act="jump" data-to="pOverdue"><span class="top"><span class="ico">${ic(od.length ? "clock" : "check")}</span><span class="k">Overdue actions</span>${od.length ? `<span class="pill bad" title="Oldest overdue action">${oldest} d late</span>` : `<span class="pill good">On track</span>`}</span><span class="row2"><span class="v">${od.length}</span>${vizRing(actTot ? D.act.done / actTot : 0, "var(--green)")}</span><span class="s"><b>${donePct}%</b> of ${actTot} actions done</span></button>
+    <button class="kpi" data-act="jump" data-to="pTrend"><span class="top"><span class="ico">${ic("cash")}</span><span class="k">Cost of failure</span>${deltaPill(sum(c6, m => m.cost), sum(p6, m => m.cost), true, "Last 6 months against the 6 before")}</span><span class="row2"><span class="v">${fmtK(cost12, D.cur)}</span></span><span class="s"><b>${fmtN(hrs12, 0)} h</b> downtime · 12 months</span></button>
+    <button class="kpi" data-act="nav" data-view="lessons"><span class="top"><span class="ico">${ic("bulb")}</span><span class="k">Lessons embedded</span>${ls.length ? `<span class="pill ${emb / ls.length >= .5 ? "good" : ""}">${Math.round(100 * emb / ls.length)}%</span>` : ""}</span><span class="row2"><span class="v">${emb}<span style="font-size:18px;color:var(--muted);font-weight:700"> / ${ls.length}</span></span>${vizRing(ls.length ? emb / ls.length : 0, "var(--s1)")}</span><span class="s">${ic("alert")}<b>${al.length}</b> alerts · ${drafts} draft${drafts === 1 ? "" : "s"}</span></button>
+  </div></section>
+  <div class="charts">
+    ${panel("cash", "Cost of failure", "Last 12 months", cs.length ? `<div class="bigstat"><span class="v">${fmtMoney(cost12, D.cur)}</span><span class="s">${cs.length ? fmtN(sum(D.months, m => m.n), 0) + " RCAs · " + fmtN(hrs12, 0) + " h downtime" : ""}</span></div>` + vizArea(D.months, D.cur) : `<div class="cempty">Start an RCA and its cost shows here.</div>`, "w2", "pTrend")}
+    ${panel("pulse", "What needs attention", "", insights(D, od, ls, al))}
   </div>
   <div class="charts">
-    ${panel("bars", "RCAs per month", "Last 12 months", cs.length ? vizColumns(D.months, D.cur) : `<div class="cempty">Start an RCA and its month shows here.</div>`, "w2", "pTrend")}
-    ${panel("pie", "Action status", actTot + " actions", actTot ? vizDonut([{ k: "Done", n: D.act.done, c: "var(--green)", i: "check" }, { k: "Open", n: D.act.open, c: "var(--s2)", i: "pulse" }, { k: "Overdue", n: D.act.over, c: "var(--red)", i: "clock" }], (Math.round(100 * D.act.done / actTot)) + "%", "done") : `<div class="cempty">Actions from your RCAs show here.</div>`)}
+    ${panel("bars", "Failure heat map", "RCAs by asset and month", D.heat.length ? vizHeat(D) : `<div class="cempty">Assets with RCAs in the last 12 months show here.</div>`, "w2")}
+    ${panel("pie", "Action status", actTot + " actions", actTot ? vizDonut([{ k: "Done", n: D.act.done, c: "var(--green)", i: "check" }, { k: "Open", n: D.act.open, c: "var(--s2)", i: "pulse" }, { k: "Overdue", n: D.act.over, c: "var(--red)", i: "clock" }], donePct + "%", "done") : `<div class="cempty">Actions from your RCAs show here.</div>`)}
   </div>
   <div class="charts">
     ${panel("layers", "Root cause mix", D.roots.reduce((s, r) => s + r.n, 0) + " causes", D.roots.some(r => r.n) ? vizMix(D.roots.map((r, i) => ({ k: r.k === "Latent / systemic" ? "Latent" : r.k, n: r.n, c: `var(--s${i + 1})` }))) + `<p class="note" style="margin:12px 0 0">Latent causes are the system gaps that let failures repeat. Fixing them stops the next one.</p>` : `<div class="cempty">Root causes from your RCAs show here.</div>`)}
