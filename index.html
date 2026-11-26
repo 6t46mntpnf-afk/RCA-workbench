@@ -245,6 +245,37 @@ main.view { min-width: 0; padding-block: 24px 48px; padding-left: max(18px, env(
 .heat .c.on:hover { outline: 2px solid var(--fg); outline-offset: 1px }
 .heat-key { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; color: var(--muted) }
 .heat-key i { width: 18px; height: 10px; border-radius: 3px; display: block }
+/* dashboard v2.5 bold and bright: orange band, solid colour tiles */
+:root { --s1: #E8590C; --brand-o: #F26722; --brand-o2: #E04E0B }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --s1: #FF8A3D } }
+:root[data-theme="dark"] { --s1: #FF8A3D }
+.hero { --fg: #FFFFFF; --muted: rgba(255,255,255,.86); --s1: #FFFFFF;
+  background: radial-gradient(70% 140% at 100% 0%, rgba(255,196,120,.55), transparent 60%), linear-gradient(120deg, #F26722, #E04E0B 60%, #C9400A); box-shadow: 0 18px 36px -20px rgba(224,78,11,.7) }
+.hero::after { background-image: radial-gradient(rgba(255,255,255,.16) 1.2px, transparent 1.4px); background-size: 18px 18px; mask-image: linear-gradient(200deg, #000, transparent 55%) }
+.hero .eyebrow { color: #FFFFFF; opacity: .92 }
+.hero .eyebrow i { background: #FFFFFF; box-shadow: 0 0 0 4px rgba(255,255,255,.25) }
+.hero .qchip { background: #FFFFFF; border-color: transparent; color: #1A1A1A; box-shadow: 0 6px 14px -8px rgba(80,20,0,.5) }
+.hero .qchip:hover { background: #FFF4EC; border-color: transparent }
+.hero .qchip .b { background: #F26722; color: #FFFFFF }
+.hero .qchip.hot .b { background: #D3261A; color: #FFFFFF }
+.hero .kpi { --fg: #1A1A1A; --muted: #6B6B66; --surface: #FFFFFF; --surface-2: #F1EEEA; --s1: #E8590C; --accent: #E8590C; --accent-soft: #FFE8D9; --red: #C8261B; --red-soft: #FDE7E4; --green: #1F8A4C; --green-soft: #E1F4E8;
+  background: var(--surface); color: var(--fg); border: 0; box-shadow: 0 10px 24px -14px rgba(80,20,0,.55); backdrop-filter: none }
+.hero .kpi:hover { background: #FFF8F3; transform: translateY(-1px) }
+.hero .kpi .ico { width: 46px; height: 46px; border-radius: 14px; background: var(--tile, #F26722); color: #FFFFFF }
+.hero .kpi .ico svg { width: 24px; height: 24px }
+.hero .kpi.t-rca { --tile: #F26722 } .hero .kpi.t-cost { --tile: #2A6DC0 } .hero .kpi.t-ll { --tile: #009A80 }
+.hero .kpi.bad { --tile: #D3261A } .hero .kpi.good { --tile: #1F8A4C }
+.hero .kpi .k { font-size: 13px; font-weight: 700; color: var(--fg) }
+.ph2 .ib { background: #F26722; color: #FFFFFF; width: 32px; height: 32px; border-radius: 10px }
+.ph2 .ib.c-blue { background: #2A6DC0 } .ph2 .ib.c-teal { background: #009A80 } .ph2 .ib.c-red { background: #D3261A } .ph2 .ib.c-ink { background: var(--solid); color: var(--solid-fg) }
+.ins button { border: 0; border-left: 5px solid var(--blue); background: var(--surface-2) }
+.ins .bad { border-left-color: #D3261A } .ins .warn { border-left-color: #E8A33D } .ins .good { border-left-color: #1F8A4C }
+.ins .ico { background: #2A6DC0; color: #FFFFFF }
+.ins .bad .ico { background: #D3261A; color: #FFFFFF } .ins .warn .ico { background: #E8A33D; color: #FFFFFF } .ins .good .ico { background: #1F8A4C; color: #FFFFFF }
+.bigstat .v { color: var(--s1) }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hero .kpi { --fg: #F3F1EE; --muted: #B5B1AB; --surface: #1F1D1B; --surface-2: #2C2926; --accent-soft: #3A2618; --red: #FF8F80; --red-soft: #3A1F1C; --green: #7FD99E; --green-soft: #1D2E20; --s1: #FF8A3D } :root:not([data-theme="light"]) .hero .kpi:hover { background: #262321 } }
+:root[data-theme="dark"] .hero .kpi { --fg: #F3F1EE; --muted: #B5B1AB; --surface: #1F1D1B; --surface-2: #2C2926; --accent-soft: #3A2618; --red: #FF8F80; --red-soft: #3A1F1C; --green: #7FD99E; --green-soft: #1D2E20; --s1: #FF8A3D }
+:root[data-theme="dark"] .hero .kpi:hover { background: #262321 }
 @media (max-width: 980px) { .hero { padding: 18px; border-radius: 20px } .hero .kpi .v { font-size: 32px } .hero .kpi .mini { width: 84px } }
 @media (max-width: 560px) { .heat { grid-template-columns: minmax(52px, max-content) repeat(12, minmax(0, 1fr)); gap: 2px } .heat .c { height: 22px; border-radius: 4px; font-size: 0 } .heat .hm { font-size: 9px } .hero h1 { font-size: 24px } .hero .kpis { gap: 10px } .hero .kpi { padding: 14px; gap: 8px } .kpi .top { flex-wrap: wrap; gap: 8px } .kpi .top .pill { order: 3; margin-left: 0 } .hero .kpi .ico { width: 32px; height: 32px; border-radius: 10px } .hero .kpi .v { font-size: 28px } .hero .kpi .mini { display: none } .hero .kpi .ring { width: 40px; height: 40px } .kpi .s { flex-wrap: wrap } }
 @media (max-width: 560px) { .kpi { padding: 13px } .kpi .v { font-size: 26px } .kpi .mini { width: 64px } .qchip { padding: 7px 12px 7px 8px; font-size: 13px } }
@@ -1091,31 +1122,31 @@ dashboard() {
   const cost12 = sum(D.months, m => m.cost), hrs12 = sum(D.months, m => m.hrs), new6 = sum(c6, m => m.n);
   const actTot = D.act.done + D.act.open + D.act.over, h = new Date().getHours(), donePct = actTot ? Math.round(100 * D.act.done / actTot) : 0;
   const oldest = od.length ? Math.max(1, Math.round((Date.parse(todayISO()) - Date.parse(od.reduce((a, x) => (!a || x.due < a ? x.due : a), ""))) / 864e5)) : 0;
-  const panel = (icon, title, sub, body, cls, id) => `<section class="panel ${cls || ""}"${id ? ` id="${id}"` : ""}><div class="ph2"><span class="ib">${ic(icon)}</span>${title}${sub ? `<span class="sub">${sub}</span>` : ""}</div>${body}</section>`;
-  return `<section class="hero"><div class="dhead"><div><div class="eyebrow"><i></i>Reliability command centre</div><h1>${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}</h1><p class="lede" style="margin:4px 0 0">${fmtDate(todayISO())}${SET.company ? " · " + esc(SET.company) : ""}</p></div>
+  const panel = (icon, title, sub, body, cls, id, col) => `<section class="panel ${cls || ""}"${id ? ` id="${id}"` : ""}><div class="ph2"><span class="ib ${col || ""}">${ic(icon)}</span>${title}${sub ? `<span class="sub">${sub}</span>` : ""}</div>${body}</section>`;
+  return `<section class="hero"><div class="dhead"><div><div class="eyebrow"><i></i>Reliability overview</div><h1>${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}</h1><p class="lede" style="margin:4px 0 0">${fmtDate(todayISO())}${SET.company ? " · " + esc(SET.company) : ""}</p></div>
     <div class="qchips"><button class="qchip" data-act="new-rca"><span class="b">${ic("rca")}</span>RCA</button><button class="qchip" data-act="new-lesson"><span class="b">${ic("bulb")}</span>Lessons learnt</button><button class="qchip hot" data-act="new-alert"><span class="b">${ic("alert")}</span>Safety alert</button></div></div>
   <div class="kpis">
-    <button class="kpi" data-act="nav" data-view="rcas" data-f="open"><span class="top"><span class="ico">${ic("rca")}</span><span class="k">Open RCAs</span>${deltaPill(new6, sum(p6, m => m.n), true, "New RCAs, last 6 months against the 6 before")}</span><span class="row2"><span class="v">${open.length}</span>${vizSpark(D.months.map(m => m.n))}</span><span class="s"><b>${new6}</b> new in 6 months</span></button>
+    <button class="kpi t-rca" data-act="nav" data-view="rcas" data-f="open"><span class="top"><span class="ico">${ic("rca")}</span><span class="k">Open RCAs</span>${deltaPill(new6, sum(p6, m => m.n), true, "New RCAs, last 6 months against the 6 before")}</span><span class="row2"><span class="v">${open.length}</span>${vizSpark(D.months.map(m => m.n))}</span><span class="s"><b>${new6}</b> new in 6 months</span></button>
     <button class="kpi ${od.length ? "bad" : "good"}" data-act="jump" data-to="pOverdue"><span class="top"><span class="ico">${ic(od.length ? "clock" : "check")}</span><span class="k">Overdue actions</span>${od.length ? `<span class="pill bad" title="Oldest overdue action">${oldest} d late</span>` : `<span class="pill good">On track</span>`}</span><span class="row2"><span class="v">${od.length}</span>${vizRing(actTot ? D.act.done / actTot : 0, "var(--green)")}</span><span class="s"><b>${donePct}%</b> of ${actTot} actions done</span></button>
-    <button class="kpi" data-act="jump" data-to="pTrend"><span class="top"><span class="ico">${ic("cash")}</span><span class="k">Cost of failure</span>${deltaPill(sum(c6, m => m.cost), sum(p6, m => m.cost), true, "Last 6 months against the 6 before")}</span><span class="row2"><span class="v">${fmtK(cost12, D.cur)}</span></span><span class="s"><b>${fmtN(hrs12, 0)} h</b> downtime · 12 months</span></button>
-    <button class="kpi" data-act="nav" data-view="lessons"><span class="top"><span class="ico">${ic("bulb")}</span><span class="k">Lessons embedded</span>${ls.length ? `<span class="pill ${emb / ls.length >= .5 ? "good" : ""}">${Math.round(100 * emb / ls.length)}%</span>` : ""}</span><span class="row2"><span class="v">${emb}<span style="font-size:18px;color:var(--muted);font-weight:700"> / ${ls.length}</span></span>${vizRing(ls.length ? emb / ls.length : 0, "var(--s1)")}</span><span class="s">${ic("alert")}<b>${al.length}</b> alerts · ${drafts} draft${drafts === 1 ? "" : "s"}</span></button>
+    <button class="kpi t-cost" data-act="jump" data-to="pTrend"><span class="top"><span class="ico">${ic("cash")}</span><span class="k">Cost of failure</span>${deltaPill(sum(c6, m => m.cost), sum(p6, m => m.cost), true, "Last 6 months against the 6 before")}</span><span class="row2"><span class="v">${fmtK(cost12, D.cur)}</span></span><span class="s"><b>${fmtN(hrs12, 0)} h</b> downtime · 12 months</span></button>
+    <button class="kpi t-ll" data-act="nav" data-view="lessons"><span class="top"><span class="ico">${ic("bulb")}</span><span class="k">Lessons embedded</span>${ls.length ? `<span class="pill ${emb / ls.length >= .5 ? "good" : ""}">${Math.round(100 * emb / ls.length)}%</span>` : ""}</span><span class="row2"><span class="v">${emb}<span style="font-size:18px;color:var(--muted);font-weight:700"> / ${ls.length}</span></span>${vizRing(ls.length ? emb / ls.length : 0, "var(--s1)")}</span><span class="s">${ic("alert")}<b>${al.length}</b> alerts · ${drafts} draft${drafts === 1 ? "" : "s"}</span></button>
   </div></section>
   <div class="charts">
     ${panel("cash", "Cost of failure", "Last 12 months", cs.length ? `<div class="bigstat"><span class="v">${fmtMoney(cost12, D.cur)}</span><span class="s">${cs.length ? fmtN(sum(D.months, m => m.n), 0) + " RCAs · " + fmtN(hrs12, 0) + " h downtime" : ""}</span></div>` + vizArea(D.months, D.cur) : `<div class="cempty">Start an RCA and its cost shows here.</div>`, "w2", "pTrend")}
-    ${panel("pulse", "What needs attention", "", insights(D, od, ls, al))}
+    ${panel("pulse", "What needs attention", "", insights(D, od, ls, al), "", "", "c-ink")}
   </div>
   <div class="charts">
-    ${panel("bars", "Failure heat map", "RCAs by asset and month", D.heat.length ? vizHeat(D) : `<div class="cempty">Assets with RCAs in the last 12 months show here.</div>`, "w2")}
-    ${panel("pie", "Action status", actTot + " actions", actTot ? vizDonut([{ k: "Done", n: D.act.done, c: "var(--green)", i: "check" }, { k: "Open", n: D.act.open, c: "var(--s2)", i: "pulse" }, { k: "Overdue", n: D.act.over, c: "var(--red)", i: "clock" }], donePct + "%", "done") : `<div class="cempty">Actions from your RCAs show here.</div>`)}
+    ${panel("bars", "Failure heat map", "RCAs by asset and month", D.heat.length ? vizHeat(D) : `<div class="cempty">Assets with RCAs in the last 12 months show here.</div>`, "w2", "", "c-red")}
+    ${panel("pie", "Action status", actTot + " actions", actTot ? vizDonut([{ k: "Done", n: D.act.done, c: "var(--green)", i: "check" }, { k: "Open", n: D.act.open, c: "var(--s2)", i: "pulse" }, { k: "Overdue", n: D.act.over, c: "var(--red)", i: "clock" }], donePct + "%", "done") : `<div class="cempty">Actions from your RCAs show here.</div>`, "", "", "c-teal")}
   </div>
   <div class="charts">
-    ${panel("layers", "Root cause mix", D.roots.reduce((s, r) => s + r.n, 0) + " causes", D.roots.some(r => r.n) ? vizMix(D.roots.map((r, i) => ({ k: r.k === "Latent / systemic" ? "Latent" : r.k, n: r.n, c: `var(--s${i + 1})` }))) + `<p class="note" style="margin:12px 0 0">Latent causes are the system gaps that let failures repeat. Fixing them stops the next one.</p>` : `<div class="cempty">Root causes from your RCAs show here.</div>`)}
+    ${panel("layers", "Root cause mix", D.roots.reduce((s, r) => s + r.n, 0) + " causes", D.roots.some(r => r.n) ? vizMix(D.roots.map((r, i) => ({ k: r.k === "Latent / systemic" ? "Latent" : r.k, n: r.n, c: `var(--s${i + 1})` }))) + `<p class="note" style="margin:12px 0 0">Latent causes are the system gaps that let failures repeat. Fixing them stops the next one.</p>` : `<div class="cempty">Root causes from your RCAs show here.</div>`, "", "", "c-blue")}
     ${panel("wrench", "Bad actors", "Cost of failure", D.assets.length ? vizBars(D.assets, a => a.cost || a.n, a => a.cost ? fmtK(a.cost, D.cur) : a.n + " RCA" + (a.n === 1 ? "" : "s"), a => a.k + "\n" + a.n + " RCA" + (a.n === 1 ? "" : "s") + (a.cost ? "\n" + fmtMoney(a.cost, D.cur) : "")) : `<div class="cempty">Assets with RCAs show here.</div>`)}
-    ${panel("bulb", "Lessons by category", ls.length + " lessons", D.cats.length ? vizBars(D.cats, c => c.n, c => c.n, c => c.k + ": " + c.n + " lesson" + (c.n === 1 ? "" : "s")) : `<div class="cempty">Lessons show here by category.</div>`)}
+    ${panel("bulb", "Lessons by category", ls.length + " lessons", D.cats.length ? vizBars(D.cats, c => c.n, c => c.n, c => c.k + ": " + c.n + " lesson" + (c.n === 1 ? "" : "s")) : `<div class="cempty">Lessons show here by category.</div>`, "", "", "c-teal")}
   </div>
   <div class="grid2">
-    <section class="panel" id="pOverdue"><div class="ph2"><span class="ib">${ic("clock")}</span>Overdue actions${od.length ? `<span class="sub" style="color:var(--red)">${od.length} to chase</span>` : ""}</div>${overdueFeed(od)}</section>
-    <section class="panel"><div class="ph2"><span class="ib">${ic("pulse")}</span>Recent activity</div>${activityFeed()}</section>
+    <section class="panel" id="pOverdue"><div class="ph2"><span class="ib c-red">${ic("clock")}</span>Overdue actions${od.length ? `<span class="sub" style="color:var(--red)">${od.length} to chase</span>` : ""}</div>${overdueFeed(od)}</section>
+    <section class="panel"><div class="ph2"><span class="ib c-ink">${ic("pulse")}</span>Recent activity</div>${activityFeed()}</section>
   </div>`;
 },
 rcas() {
